@@ -3,6 +3,7 @@ AccessorFunc(ENT, "State", "State")
 
 function ENT:InitBoard()
 	self.Players = {}
+	self.StateVars = {}
 	self.State = 1
 	self.Turn = 0
 	self:GenerateProperties()
@@ -23,9 +24,9 @@ function ENT:GenerateProperties()
 	end
 end
 
--- function ENT:GetState()
--- 	return self.ST_ENUM.ROLL_FOR_ORDER
--- end
+// function ENT:GetState()
+// 	return self.ST_ENUM.ROLL_FOR_ORDER
+// end
 
 function ENT:GetStateName()
 	return self.ST_STRING[self:GetState()] or "nil"
@@ -60,45 +61,120 @@ for k, v in pairs(ENT.ST_ENUM) do
 end
 
 if SERVER then
-	function ENT:HandleInput(ply, command)
+	ENT.Commands = {
+		["start"] = function(self, ply, command, data)
+			if ply:GetIndex() == 1 and self:GetState() == self.ST_ENUM.WAITING then
+				for k, v in pairs(self.Players) do
+					if not IsValid(v.Entity) then self:RemovePlayer(k) end
+				end
+				self:SetState(self.ST_ENUM.ROLL_FOR_ORDER)
+			end
+		end,
+		["settings"] = function(self, ply, command, data)
 
+		end,
+		["leave"] = function(self, ply, command, data)
+
+		end,
+		["roll"] = function(self, ply, command, data)
+			if ply.Roll[1] == 7 then
+				ply:RollDice(ply.Roll[2] == 7 and 2 or 1)
+			end
+		end,
+		["buy"] = function(self, ply, command, data)
+
+		end,
+		["mortage"] = function(self, ply, command, data)
+
+		end,
+		["start_trade"] = function(self, ply, command, data)
+
+		end,
+		["offer_trade"] = function(self, ply, command, data)
+
+		end,
+		["houses"] = function(self, ply, command, data)
+
+		end,
+		["bid"] = function(self, ply, command, data)
+
+		end,
+	}
+
+	util.AddNetworkString("Monopoly_Command")
+
+	net.Receive("Monopoly_Command", function(_, ply)
+		if ply.MN_LastCommand and CurTime() - ply.MN_LastCommand < .3 then return end
+		local ent = net.ReadEntity()
+		if not (IsValid(ent) and ent:GetClass() == "sent_gmodopoly" and ent:GetPlayer(ply)) then return end
+
+		local command = net.ReadString()
+		local data = net.ReadTable()
+		ent:HandleInput(ply, command, data)
+
+		ply.MN_LastCommand = (ply.MN_LastCommand or 0) + 1
+	end)
+
+	function ENT:HandleInput(ply, command, data)
+		if not self.Commands[command] then return print("fucK") end
+		self.Commands[command](self, self:GetPlayer(ply), command, data)
 	end
 
-	function ENT.STATES:WAITING(cturn_ply, players, properties)
+	//STATES
+	function ENT.STATES:WAITING(ent, ply, players, properties)
 		for k, v in pairs(players) do
-			if not IsValid(v.Entity) and not v.AI then self:RemovePlayer(k) end
+			if not IsValid(v.Entity) then self:RemovePlayer(k) end
 		end
 
-		if #players == 8 then
-			self:SetTurn(self:GetTurn() + 1)
-			self:SetState(self.ST_ENUM.ROLL_FOR_ORDER)
-		end
-
-		self:NextThink(CurTime() + 1)
+		ent:NextThink(CurTime() + 0.5)
 		return true
 	end
 
-	function ENT.STATES:ROLL_FOR_ORDER(ply, players, properties)
-		if ply then
-			ply:RollDice(2)
-		end
-
-		if not ply or self:GetTurn() == 8 then
-			table.SortByMember(players, "RollTotal")
-			self:ReloadPlayerList()
-			self:SetTurn(1)
-			self:SetState(self.ST_ENUM.TURN)
+	function ENT.STATES:ROLL_FOR_ORDER(ent, ply, players, properties)
+		if not self.FirstRoll then
+			for k, v in pairs(players) do
+				v:StartRoll(2)
+			end
+			self.FirstRoll = true
 		else
-			self:SetTurn(self:GetTurn() + 1)
+			local proceed = true
+			for k, v in pairs(players) do
+				if v:IsRolling() then
+					proceed = false
+					v.TRollTotal = v:GetRollTotal()
+				end
+			end
+			if proceed then
+				table.SortByMember(players, "TRollTotal")
+				ent:ReloadPlayerList()
+				ent:SetTurn(1)
+				ent:SetState(ent.ST_ENUM.TURN)
+			end
 		end
 
-		self:NextThink(CurTime() + 2)
+		ent:NextThink(CurTime() + 1)
 		return true
+	end
+	//
+
+elseif CLIENT then
+	function ENT:SendCommand(command, data)
+		if not command or self.LastCommand and CurTime() - self.LastCommand < .3 then return false end
+		net.Start("Monopoly_Command")
+			net.WriteEntity(self)
+			net.WriteString(command)
+			net.WriteTable(data or {})
+		net.SendToServer()
+		self.LastCommand = CurTime()
 	end
 end
 
 //IDEA:  23 End Time?? | 3 Player #'s Turn | 5 State
 if CLIENT then
+	function ENT:GetLocalPlayer()
+		return self:GetPlayer(LocalPlayer())
+	end
+
 	function ENT:RebuildStateCache(_, old, new)
 		if old == new then return end
 		self.State = bit.band(new, 0x1F)

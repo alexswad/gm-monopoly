@@ -39,7 +39,7 @@ end
 
 function ENT:Think()
 	local f = self.STATES[self:GetStateString()]
-	if not f or f and not f(self, self:GetPlayerByIndex(self:GetTurn()), self.Players, self.Properties) then
+	if not f or f and not f(self.StateVars, self, self:GetPlayerByIndex(self:GetTurn()), self.Players or {}, self.Properties or {}) then
 		self:NextThink(CurTime() + 3)
 		if CLIENT then self:SetNextClientThink(CurTime() + 3) end
 	end

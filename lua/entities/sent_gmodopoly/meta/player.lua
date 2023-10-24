@@ -19,7 +19,6 @@ function ENT:CreatePlayer(entity)
 	ply.Money = 0
 	ply.Space = 1
 	ply.Roll = {0, 0}
-	ply.RollTotal = 0
 
 	return ply
 end
@@ -27,7 +26,8 @@ end
 if SERVER then
 	function ENT:AddPlayer(entity)
 		//if self:GetState() ~= self.ST_ENUM.WAITING then return false end
-		if self:GetPlayer(entity) or table.Count(self.Players) >= 8 then return false end
+		// self:GetPlayer(entity) or
+		if table.Count(self.Players) >= 8 then return false end
 		local index = table.insert(self.Players, self:CreatePlayer(entity))
 		self.Players[index].Index = index
 
@@ -49,10 +49,10 @@ if SERVER then
 	function ENT:ReloadPlayerList()
 		for i = 1, 8 do
 			if self.Players[i] then
-				if index == 1 then
-					self.Players[index].Host = true 
+				if i == 1 then
+					self.Players[i].Host = true
 				else
-					self.Players[index].Host = false
+					self.Players[i].Host = false
 				end
 				self:SetDTInt(i, self.Players[i]:GetFlagInteger())
 				self:SetDTEntity(i, self.Players[i].Entity)
@@ -126,7 +126,6 @@ if CLIENT then
 		plyobj.JailCards = bit.rshift(bit.band(flags, 0xC00000), 22)
 		plyobj.Jailed = tobool(bit.rshift(bit.band(flags, 0x1000000), 24))
 		plyobj.Roll = {bit.rshift(bit.band(flags, 0xE000000), 25), bit.rshift(bit.band(flags, 0x70000000), 28)}
-		plyobj.RollTotal = plyobj.Roll[1] + plyobj.Roll[2]
 
 		timer.Remove("MN_RebuildPlayerInfoCache" .. ply)
 	end
@@ -201,15 +200,41 @@ function ENT:GetPlayer(entity)
 	return false
 end
 
+function ENT:IsTurn(ply)
+	return self:GetTurn() == self:GetPlayerIndex(ply)
+end
 
 function PLAYER:IsValid()
 	return self.Valid
+end
+
+function PLAYER:IsTurn()
+	if not IsValid(self.Board) then return false end
+	return self.Board:GetTurn() == self.Index
 end
 
 function PLAYER:GetIndex()
 	if self.Index or not IsValid(self.Board) then return self.Index end
 	self.Index = table.KeyFromValue(self.Board.Players, self)
 	return self.Index or false
+end
+
+local empty = {0, 0}
+function PLAYER:GetRoll()
+	if self.Roll[1] == 7 then return empty end
+	return self.Roll
+end
+
+function PLAYER:IsRolling()
+	if self.Roll[1] == 7 then
+		return true, self.Roll[2] == 7 and 2 or 1
+	end
+	return false
+end
+
+function PLAYER:GetRollTotal()
+	local d1, d2 = self.Roll[1], self.Roll[2]
+	return d1 ~= 7 and ((d1 and d2) and d1 + d2 or d1) or 0
 end
 
 // 32bits >>|injail(1)|goj(2|3)|pos(6|63)|money(15|32,767)|Alive/Valid(1)
@@ -249,7 +274,15 @@ if SERVER then
 
 	function PLAYER:SetRoll(roll)
 		self.Roll = istable(roll) and roll or {bit.band(roll, 0x7), bit.rshift(bit.band(roll, 0x38), 3)}
-		self.RollTotal = istable(roll) and roll[1] + roll[2] or roll
+		self:UpdateFlags()
+	end
+
+	function PLAYER:StartRoll(n)
+		if n == 1 then
+			self.Roll = {7, 0}
+		else
+			self.Roll = {7, 7}
+		end
 		self:UpdateFlags()
 	end
 
@@ -262,7 +295,6 @@ if SERVER then
 			tab[i] = b
 		end
 		self.Roll = tab
-		self.RollTotal = out
 		self:UpdateFlags()
 		return tab, out
 	end
@@ -358,7 +390,7 @@ if CLIENT then
 		surface.DrawRect(nx, ny, 24, 24)
 		surface.SetDrawColor(self:GetColor())
 		surface.DrawRect(nx + 3, ny + 3, 18, 18)
-		draw.DrawText(self.RollTotal or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+		draw.DrawText(self:GetRollTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 	end
 
 	function PLAYER:DrawPos(nx, ny)
@@ -367,7 +399,7 @@ if CLIENT then
 		surface.DrawRect(nx, ny, 24, 24)
 		surface.SetDrawColor(self:GetColor())
 		surface.DrawRect(nx + 3, ny + 3, 18, 18)
-		draw.DrawText(self.RollTotal or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+		draw.DrawText(self:GetRollTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 	end
 
 	function PLAYER:GetColor()
