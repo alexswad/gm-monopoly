@@ -13,8 +13,10 @@ AddCSLuaFile("board_spaces.lua")
 AddCSLuaFile("meta/board.lua")
 AddCSLuaFile("meta/property.lua")
 AddCSLuaFile("meta/player.lua")
+AddCSLuaFile("meta/states.lua")
 include("board_spaces.lua")
 include("meta/board.lua")
+include("meta/states.lua")
 include("meta/property.lua")
 include("meta/player.lua")
 
@@ -35,11 +37,11 @@ function ENT:SetupDataTables()
 
 	//IDEA:  23 End Time | 3 Player #'s Turn | 5 State
 	self:SetupCache("Int", 0, "StateData", self.RebuildStateCache)
+	self:SetupCache("Int", 9, "StartTime", self.RebuildStateCache)
 end
 
 function ENT:Think()
-	local f = self.STATES[self:GetStateString()]
-	if not f or f and not f(self.StateVars, self, self:GetPlayerByIndex(self:GetTurn()), self.Players or {}, self.Properties or {}) then
+	if not self:CallState(self.State) then
 		self:NextThink(CurTime() + 3)
 		if CLIENT then self:SetNextClientThink(CurTime() + 3) end
 	end

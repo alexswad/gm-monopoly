@@ -15,7 +15,7 @@ function ENT:SpawnFunction(ply, tr, cl)
 		ent:GetPhysicsObject():EnableMotion(false)
 	end
 	//DEBUG
-	test = ent
+	mono = ent
 	return ent
 end
 

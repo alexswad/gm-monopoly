@@ -25,9 +25,9 @@ end
 
 if SERVER then
 	function ENT:AddPlayer(entity)
-		//if self:GetState() ~= self.ST_ENUM.WAITING then return false end
+		//if self:GetState() ~= self.ST_EN.WAITING then return false end
 		// self:GetPlayer(entity) or
-		if table.Count(self.Players) >= 8 then return false end
+		if not IsValid(entity) or table.Count(self.Players) >= 8 then return false end
 		local index = table.insert(self.Players, self:CreatePlayer(entity))
 		self.Players[index].Index = index
 
@@ -38,7 +38,7 @@ if SERVER then
 
 	function ENT:RemovePlayer(entity)
 		local ply = isnumber(entity) and entity or self:GetPlayerIndex(entity)
-		//if not ply or self:GetState() ~= self.ST_ENUM.WAITING then return false end
+		//if not ply or self:GetState() ~= self.ST_EN.WAITING then return false end
 		table.remove(self.Players, ply)
 
 		self:ReloadPlayerList()
@@ -327,6 +327,10 @@ function PLAYER:GetName()
 	if self.Name then return self.Name end
 	self.Name = IsValid(self.Entity) and self.Entity:Name()
 	return self.Name or "NULL"
+end
+
+function PLAYER:StartMove(newspace)
+	self.Board:StartMove(self, newspace)
 end
 
 function PLAYER:GetPropDataString()

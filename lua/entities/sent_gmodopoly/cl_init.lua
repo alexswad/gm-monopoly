@@ -26,24 +26,24 @@ local porder = {
 
 // TESTING PURPOSES WILL NOT BE FINAL PRODUCT
 hook.Add("HUDPaint", "DrawMon", function()
-	mat = mat or Material("monopoly/default_board"):GetTexture("$basetexture")
 	if not IsValid(board) then
 		for k, v in pairs(ents.FindByClass("sent_gmodopoly")) do
-			if v:GetPlayer(LocalPlayer()) then
+			if v:GetLocalPlayer() then
 				board = v
 				return
 			end
 		end
 		return
 	end
+	mat = mat or Material("monopoly/default_board"):GetTexture("$basetexture")
 
 
-	if not board:GetPlayer(LocalPlayer()) then board = nil return end
+	if not board:GetLocalPlayer() then board = nil return end
 	render.DrawTextureToScreenRect(mat, x, y, d, d)
 
-	if board:GetState() == board.ST_ENUM.WAITING then
+	if board:GetState() == board.ST_EN.WAITING then
 		draw.SimpleTextOutlined("PLAYER 1 PRESS SPACE TO START", "CloseCaption_Bold", x + d / 2, y + d / 2 - 50, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 4, Color(0, 0, 0))
-	elseif board:GetState() == board.ST_ENUM.ROLL_FOR_ORDER then
+	elseif board:GetLocalPlayer():IsRolling() then
 		draw.SimpleTextOutlined("PRESS SPACE TO ROLL!!!", "CloseCaption_Bold", x + d / 2, y + d / 2 - 50, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 4, Color(0, 0, 0))
 	end
 
@@ -70,7 +70,7 @@ hook.Add("HUDPaint", "DrawMon", function()
 	end
 
 
-	if board:GetState() == board.ST_ENUM.ROLL_FOR_ORDER then
+	if board:GetState() == board.ST_EN.ROLL_FOR_ORDER then
 		local c = table.Count(board.Players)
 		for k, v in pairs(board.Players) do
 			v:DrawPos(x + d / 2 - c * 30 + k * 30, y + d / 2)
@@ -83,16 +83,21 @@ hook.Add("HUDPaint", "DrawMon", function()
 	end
 end)
 
-hook.Add("PlayerButtonDown", "MN_Input", function(ply, key)
+hook.Add("PlayerButtonDown", "MN_TestInput", function(ply, key)
 	if not IsValid(board) or not board:GetLocalPlayer() then return end
 	local bply = board:GetLocalPlayer()
-	if board:GetState() == board.ST_ENUM.WAITING and key == KEY_SPACE then
+	if board:GetState() == board.ST_EN.WAITING and key == KEY_SPACE then
 		board:SendCommand("start")
 	end
 
 	if bply:IsRolling() and key == KEY_SPACE  then
 		board:SendCommand("roll")
 	end
+end)
+
+hook.Add("OnPlayerChat", "MN_TestInput", function(ply, text)
+	if not IsValid(board) or not text:StartsWith("!") then return end
+	board:SendCommand(text:sub(2))
 end)
 
 //silly function might be useful later
