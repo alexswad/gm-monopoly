@@ -201,7 +201,11 @@ function ENT:GetPlayer(entity)
 end
 
 function ENT:IsTurn(ply)
-	return self:GetTurn() == self:GetPlayerIndex(ply)
+	return self:GetTurn() == (isnumber(ply) and ply or self:GetPlayerIndex(ply))
+end
+
+function ENT:GetTurnPlayer()
+	return self:GetPlayerByIndex(self:GetTurn())
 end
 
 function PLAYER:IsValid()

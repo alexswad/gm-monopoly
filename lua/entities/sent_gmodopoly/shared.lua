@@ -37,13 +37,22 @@ function ENT:SetupDataTables()
 
 	//IDEA:  23 End Time | 3 Player #'s Turn | 5 State
 	self:SetupCache("Int", 0, "StateData", self.RebuildStateCache)
-	self:SetupCache("Int", 9, "StartTime", self.RebuildStateCache)
+	self:SetupCache("Int", 9, "StartTime", self.BuildStateCache)
 end
 
 function ENT:Think()
-	if not self:CallState(self.State) then
+	if IsValid(self) and not self:CallState(self.State) then
 		self:NextThink(CurTime() + 3)
 		if CLIENT then self:SetNextClientThink(CurTime() + 3) end
 	end
 	return true
+end
+
+// ONLY CALCULATES FORWARD DISTANCE
+function ENT:SpaceDistance(start, final)
+	if start < final then
+		return final - start
+	else
+		return final + 40 - start
+	end
 end

@@ -30,14 +30,17 @@ for k, v in pairs(ENT.ST_EN) do
 	ENT.ST_STR[v] = k
 end
 
-function ENT:CallState(state)
+function ENT:CallState(state, data)
 	if isnumber(state) then
 		state = self.ST_STR[state]
 	end
 
 	local f = self.STATES[state or ""]
-	return not f and false or f and f(self.StateVars, self, self:GetPlayerByIndex(self:GetTurn()), self.Players or {}, self.Properties or {})
+	return not f and false or f and f(self.StateVars, self, self:GetPlayerByIndex(self:GetTurn()), self.Players or {}, self.Properties or {}, data)
 end
+
+local movetime = 3
+local startmovewait = 1
 
 if CLIENT then
 	function ENT:RebuildStateCache(_, old, new)
@@ -46,18 +49,30 @@ if CLIENT then
 		if ostate ~= nstate then
 			self:CallState(self:GetStateString(ostate) .. "_END")
 			self.State = nstate
+			self.StateVars = {}
 			self:CallState(self:GetStateString(nstate) .. "_START")
 		end
 
 		self.Turn = bit.band(new, 0xE0) + 1
-		self.StateVars = {}
-		self:CallState(self:GetStateString() .. "_BUILDCACHE")
+
+		timer.Simple(0, function()
+			self.StateVars = self.StateVars or {}
+			self:CallState(self:GetStateString() .. "_BUILDCACHE", bit.rshift(new - bit.band(new, 255), 8))
+		end)
+	end
+
+	function ENT:BuildStateCache()
+		self:RebuildStateCache(nil, nil, self:GetStateData())
 	end
 
 	// STATES
-	function ENT.STATES:MOVE_BUILDCACHE(ent, ply, players, properties)
-		//self.MoveEndTime = bit.band(ent.StateInfo, )
-		//self.MoveSpace =
+	function ENT.STATES:MOVE_BUILDCACHE(ent, ply, players, properties, data)
+		print(data)
+		self.MoveSpace = bit.band(data, 0x3F)
+		self.MoveEndTime = bit.rshift(bit.band(data, 0xFFFFFFC0), 6)
+		self.MoveStartSpace = self.MoveStartSpace or ply and ply:GetSpace()
+
+		print("end time client: ", math.ceil(self.MoveEndTime), math.ceil(self.MoveEndTime) + ent:GetStartTime())
 	end
 elseif SERVER then
 	//IDEA:  23 End Time?? | 3 Player #'s Turn | 5 State
@@ -65,8 +80,8 @@ elseif SERVER then
 		local int = 0
 		int = int + (self.State or 1)
 		int = int + bit.lshift(math.max((self.Turn or 0) - 1, 0), 5)
-		print(self:GetStateString())
-		int = int + bit.lshift(self:CallState(self:GetStateString() .. "_UPDATEDATA") or 0, 8)
+		local updatedata = self:CallState(self:GetStateString() .. "_UPDATEDATA")
+		int = int + bit.lshift(updatedata or 0, 8)
 		self:SetStateData(int)
 	end
 
@@ -84,10 +99,13 @@ elseif SERVER then
 	end
 
 	function ENT:StartMove(index, newspace)
-		if not index or not newspace then return end
+		local ply = self:GetPlayerByIndex(index)
+		if not ply or not newspace then return end
 		self:SetTurn(index)
+		self:SetStartTime(CurTime())
 		self.StateVars.MoveSpace = newspace
-		self.StateVars.MoveEndTime = endtime or 0 // TODO
+		self.StateVars.MoveStartSpace = ply:GetSpace()
+		self.StateVars.MoveEndTime = self:SpaceDistance(self.StateVars.MoveStartSpace, newspace) * movetime + startmovewait
 		self:SetState(self.ST_EN.MOVE)
 	end
 
@@ -119,6 +137,7 @@ elseif SERVER then
 			table.SortByMember(players, "TRollTotal")
 			ent:ReloadPlayerList()
 			timer.Simple(2, function()
+				if not IsValid(ent) then return end
 				ent:SetTurn(1)
 				ent:SetState(ent.ST_EN.TURN, true)
 			end)
@@ -134,7 +153,7 @@ elseif SERVER then
 	end
 
 	function ENT.STATES:TURN(ent, ply, players, properties)
-		if ply:GetRollTotal() ~= 0 then
+		if ply:GetRollTotal() ~= 0 and ply then
 			ent:StartMove(ply.Index, ply:GetSpace() + ply:GetRollTotal())
 		end
 		ent:NextThink(CurTime() + 1)
@@ -142,7 +161,9 @@ elseif SERVER then
 	end
 
 	function ENT.STATES:MOVE_UPDATEDATA(ent, ply, players, properties)
-		return self.MoveSpace + bit.rshift(self.MoveEndTime, 6)
+		print("end time server: ", math.ceil(self.MoveEndTime), math.ceil(self.MoveEndTime) + ent:GetStartTime())
+		print(self.MoveSpace + bit.lshift(math.ceil(self.MoveEndTime), 6))
+		return self.MoveSpace + bit.lshift(math.ceil(self.MoveEndTime), 6)
 	end
 end
 

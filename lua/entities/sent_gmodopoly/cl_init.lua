@@ -75,6 +75,15 @@ hook.Add("HUDPaint", "DrawMon", function()
 		for k, v in pairs(board.Players) do
 			v:DrawPos(x + d / 2 - c * 30 + k * 30, y + d / 2)
 		end
+	elseif board:GetState() == board.ST_EN.MOVE then
+		local ply = board:GetTurnPlayer()
+		if board.StateVars.MoveEndTime then
+			ply:SetSpace(math.Clamp(1,(ply:GetSpace() + 1) % 41, 40))
+		end
+
+		for k, v in pairs(board.Players) do
+			v:Draw()
+		end
 	else
 		// players
 		for k, v in pairs(board.Players) do
