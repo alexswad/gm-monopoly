@@ -10,10 +10,9 @@ ENT.STATES = {}
 
 ENT.ST_EN = {
 	WAITING = 1,
-	ROLL_FOR_ORDER = 2, // 10000 -> 10004, 2000 -> 206....
+	ROLL_FOR_ORDER = 2,
 	TURN = 3,
 	MOVE = 4,
-	OWE_RENT = 5,
 	CHANCE = 6,
 	COMMUNITY = 7,
 	ROLL = 8,
@@ -39,7 +38,7 @@ function ENT:CallState(state, data)
 	return not f and false or f and f(self.StateVars, self, self:GetPlayerByIndex(self:GetTurn()), self.Players or {}, self.Properties or {}, data)
 end
 
-local movetime = 3
+local movetime = 0.3
 local startmovewait = 1
 
 if CLIENT then
@@ -49,15 +48,14 @@ if CLIENT then
 		if ostate ~= nstate then
 			self:CallState(self:GetStateString(ostate) .. "_END")
 			self.State = nstate
-			self.StateVars = {}
-			self:CallState(self:GetStateString(nstate) .. "_START")
 		end
 
 		self.Turn = bit.band(new, 0xE0) + 1
 
 		timer.Simple(0, function()
-			self.StateVars = self.StateVars or {}
+			self.StateVars = {}
 			self:CallState(self:GetStateString() .. "_BUILDCACHE", bit.rshift(new - bit.band(new, 255), 8))
+			self:CallState(self:GetStateString(nstate) .. "_START")
 		end)
 	end
 
@@ -67,12 +65,9 @@ if CLIENT then
 
 	// STATES
 	function ENT.STATES:MOVE_BUILDCACHE(ent, ply, players, properties, data)
-		print(data)
 		self.MoveSpace = bit.band(data, 0x3F)
 		self.MoveEndTime = bit.rshift(bit.band(data, 0xFFFFFFC0), 6)
 		self.MoveStartSpace = self.MoveStartSpace or ply and ply:GetSpace()
-
-		print("end time client: ", math.ceil(self.MoveEndTime), math.ceil(self.MoveEndTime) + ent:GetStartTime())
 	end
 elseif SERVER then
 	//IDEA:  23 End Time?? | 3 Player #'s Turn | 5 State
@@ -86,16 +81,22 @@ elseif SERVER then
 	end
 
 	function ENT:SetState(state, clear)
-		if self:GetState() == state then return end
-
-		if clear then self.StateVars = {} end
-
-		self.State = state
-		if self:GetStateString() then
-			self:CallState(self:GetStateString() .. "_START")
+		if isstring(state) then
+			state = self.ST_EN[state]
 		end
 
+		self:CallState(self:GetStateString() .. "_END")
+
+		if clear then self:ClearStateVars() end
+
+		self.State = state
+		self:CallState(self:GetStateString() .. "_START")
+
 		self:UpdateStateData()
+	end
+
+	function ENT:ClearStateVars()
+		self.StateVars = {}
 	end
 
 	function ENT:StartMove(index, newspace)
@@ -106,10 +107,11 @@ elseif SERVER then
 		self.StateVars.MoveSpace = newspace
 		self.StateVars.MoveStartSpace = ply:GetSpace()
 		self.StateVars.MoveEndTime = self:SpaceDistance(self.StateVars.MoveStartSpace, newspace) * movetime + startmovewait
-		self:SetState(self.ST_EN.MOVE)
+		self:SetState("MOVE")
 	end
 
 	// STATES
+	// WAITING
 	function ENT.STATES:WAITING(ent, ply, players, properties)
 		for k, v in pairs(players) do
 			if not IsValid(v.Entity) then self:RemovePlayer(k) end
@@ -119,6 +121,7 @@ elseif SERVER then
 		return true
 	end
 
+	// START / RFO
 	function ENT.STATES:ROLL_FOR_ORDER_START(ent, ply, players, properties)
 		for k, v in pairs(players) do
 			v:StartRoll(2)
@@ -130,16 +133,19 @@ elseif SERVER then
 		for k, v in pairs(players) do
 			if v:IsRolling() then
 				proceed = false
-				v.TRollTotal = v:GetRollTotal()
 			end
+			v.TRollTotal = v:GetRollTotal()
 		end
 		if proceed then
 			table.SortByMember(players, "TRollTotal")
 			ent:ReloadPlayerList()
 			timer.Simple(2, function()
 				if not IsValid(ent) then return end
+				for k, v in pairs(players) do
+					v:SetMoney(1500)
+				end
 				ent:SetTurn(1)
-				ent:SetState(ent.ST_EN.TURN, true)
+				ent:SetState("TURN", true)
 			end)
 		end
 
@@ -147,8 +153,9 @@ elseif SERVER then
 		return true
 	end
 
+	// TURN
 	function ENT.STATES:TURN_START(ent, ply, players, properties)
-		self.CanRoll = true
+		self.CanRoll = self.CanRoll == nil or self.CanRoll
 		ply:SetRoll(0)
 	end
 
@@ -160,10 +167,39 @@ elseif SERVER then
 		return true
 	end
 
+
+
+	// MOVE
 	function ENT.STATES:MOVE_UPDATEDATA(ent, ply, players, properties)
-		print("end time server: ", math.ceil(self.MoveEndTime), math.ceil(self.MoveEndTime) + ent:GetStartTime())
-		print(self.MoveSpace + bit.lshift(math.ceil(self.MoveEndTime), 6))
 		return self.MoveSpace + bit.lshift(math.ceil(self.MoveEndTime), 6)
+	end
+
+	function ENT.STATES:MOVE_START(ent, ply, players, properties)
+		ply:SetSpace(self.MoveSpace)
+	end
+
+	function ENT.STATES:MOVE(ent, ply, players, properties)
+		if self.MoveEndTime + ent:GetStartTime() < CurTime() then
+			ent:SetState("TURN")
+		end
+	end
+
+	function ENT.STATES:MOVE_END(ent, ply, players, properties)
+		local p = properties[ply:GetSpace()] or ent.BoardData[ply:GetSpace()]
+		local pe = ply:GetEntity()
+		if istable(p) and not p:GetOwner() then
+			pe:ChatPrint("You can buy this!!! type !buy!!!")
+		elseif p == "chance" then
+
+		end
+
+		if ply:GetRoll()[1] == ply:GetRoll()[2] then
+			pe:ChatPrint("Doubles!!")
+			self.CanRoll = true
+		else
+
+		end
+		self.HasGone = true
 	end
 end
 

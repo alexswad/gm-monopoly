@@ -4,7 +4,7 @@ PROP.__index = PROP
 AccessorFunc(PROP, "RentTable", "RentTable")
 AccessorFunc(PROP, "Name", "Name")
 AccessorFunc(PROP, "Group", "Group")
-AccessorFunc(PROP, "Cost", "Cost")
+AccessorFunc(PROP, "Price", "Price")
 AccessorFunc(PROP, "RentLevel", "RentLevel")
 
 local colors = {
@@ -25,7 +25,7 @@ function ENT:CreateProperty(tab)
 	local prop = {}
 	setmetatable(prop, PROP)
 	prop.RentTable = tab.rent
-	prop.Cost = tab.cost
+	prop.Price = tab.price
 	prop.Name = tab.name
 	prop.Group = tab.group
 	prop.Board = self
@@ -42,10 +42,10 @@ function PROP:GetMortaged()
 end
 
 function PROP:GetMortagePrice()
-	return self.Cost / 2
+	return self.Price / 2
 end
 
-function PROP:GetUnmortageCost()
+function PROP:GetUnmortagePrice()
 	return self:GetMortagePrice() * 1.1
 end
 

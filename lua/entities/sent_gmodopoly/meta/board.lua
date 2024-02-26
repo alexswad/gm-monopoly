@@ -26,48 +26,60 @@ end
 
 if SERVER then
 	ENT.Commands = {
-		["start"] = function(self, ply, command, data)
-			if ply:GetIndex() == 1 and self:GetState() == self.ST_EN.WAITING then
-				for k, v in pairs(self.Players) do
-					if not IsValid(v.Entity) then self:RemovePlayer(k) end
+		["start"] = function(ent, ply, command, data, stvr)
+			if ply:GetIndex() == 1 and ent:GetState() == ent.ST_EN.WAITING then
+				for k, v in pairs(ent.Players) do
+					if not IsValid(v.Entity) then ent:RemovePlayer(k) end
 				end
-				self:SetState(self.ST_EN.ROLL_FOR_ORDER, true)
+				ent:SetState("ROLL_FOR_ORDER", true)
 			end
 		end,
-		["settings"] = function(self, ply, command, data)
+		["settings"] = function(ent, ply, command, data, stvr)
 
 		end,
-		["leave"] = function(self, ply, command, data)
-			self:RemovePly(ply)
+		["kick"] = function(ent, ply, command, data, stvr)
+			ent:RemovePly(ply)
 		end,
-		["roll"] = function(self, ply, command, data)
+		["roll"] = function(ent, ply, command, data, stvr)
 			if ply:IsRolling() then
 				ply:RollDice(ply.Roll[2] == 7 and 2 or 1)
 			end
 		end,
-		["start_roll"] = function(self, ply, command, data)
-			if self:GetState() == self.ST_EN.TURN and ply:IsTurn() and self.StateVars.CanRoll then
+		["start_roll"] = function(ent, ply, command, data, stvr)
+			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and stvr.CanRoll then
 				ply:StartRoll(2)
-				ply.CanRoll = false
+				stvr.CanRoll = false
 			end
 		end,
-		["start_trade"] = function(self, ply, command, data)
+		["start_trade"] = function(ent, ply, command, data, stvr)
 
 		end,
-		["buy"] = function(self, ply, command, data)
+		// temp basic implementation without auctioning for prototyping
+		["buy"] = function(ent, ply, command, data, stvr)
+			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and stvr.HasGone then
+				local p = ent.Properties[ply:GetSpace()]
+				if not p or ply:GetMoney() < p:GetPrice() or p:GetOwner() then return end
+				ply:SetMoney(ply:GetMoney() - p:GetPrice())
+				ply:AddProperty(p.Index)
+			end
+		end,
+		["mortage"] = function(ent, ply, command, data, stvr)
 
 		end,
-		["mortage"] = function(self, ply, command, data)
+		["offer_trade"] = function(ent, ply, command, data, stvr)
 
 		end,
-		["offer_trade"] = function(self, ply, command, data)
+		["sethouses"] = function(ent, ply, command, data, stvr)
 
 		end,
-		["houses"] = function(self, ply, command, data)
+		["bid"] = function(ent, ply, command, data, stvr)
 
 		end,
-		["bid"] = function(self, ply, command, data)
-
+		["end"] = function(ent, ply, command, data, stvr)
+			if not ply:IsTurn() or stvr.CanRoll or ent:GetState() ~= ent.ST_EN.TURN then print("cant_end") return end
+			ent:ClearStateVars()
+			ent:SetTurn((ent:GetTurn() % #ent.Players) + 1)
+			ent:SetState("TURN", true)
 		end,
 	}
 
@@ -87,11 +99,10 @@ if SERVER then
 
 	function ENT:HandleInput(ply, command, data)
 		if not self.Commands[command] then return end
-		self.Commands[command](self, self:GetPlayer(ply), command, data)
+		self.Commands[command](self, self:GetPlayer(ply), command, data, self.StateVars)
 	end
 
 	function ENT:SetTurn(turn)
-		assert(isnumber(turn), "invalid input type (should be number)")
 		self.Turn = turn
 		self:UpdateStateData()
 	end

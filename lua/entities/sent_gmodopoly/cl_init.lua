@@ -77,8 +77,10 @@ hook.Add("HUDPaint", "DrawMon", function()
 		end
 	elseif board:GetState() == board.ST_EN.MOVE then
 		local ply = board:GetTurnPlayer()
-		if board.StateVars.MoveEndTime then
-			ply:SetSpace(math.Clamp(1,(ply:GetSpace() + 1) % 41, 40))
+		local vars = board.StateVars
+		if vars.MoveEndTime and ply then
+			local dr, ms, mss, t = vars.MoveEndTime, vars.MoveSpace, vars.MoveStartSpace, CurTime() - board:GetStartTime() - 1
+			ply:SetSpace(mss + math.ceil(board:SpaceDistance(mss, ms) * math.Clamp(t / dr, 0, 1)))
 		end
 
 		for k, v in pairs(board.Players) do
@@ -105,7 +107,8 @@ hook.Add("PlayerButtonDown", "MN_TestInput", function(ply, key)
 end)
 
 hook.Add("OnPlayerChat", "MN_TestInput", function(ply, text)
-	if not IsValid(board) or not text:StartsWith("!") then return end
+	print('help')
+	if not IsValid(board) or not text:StartsWith("!") or ply ~= LocalPlayer() then return end
 	board:SendCommand(text:sub(2))
 end)
 

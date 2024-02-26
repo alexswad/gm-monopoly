@@ -39,6 +39,18 @@ if SERVER then
 	function ENT:RemovePlayer(entity)
 		local ply = isnumber(entity) and entity or self:GetPlayerIndex(entity)
 		//if not ply or self:GetState() ~= self.ST_EN.WAITING then return false end
+
+		// this needs some work
+		if self:GetTurn() == ply then
+			self:NextTurn()
+			if ply ~= 8 then
+				self:SetTurn(self:GetTurn() - 1)
+			end
+		elseif self:GetTurn() > ply then
+			self:SetTurn(self:GetTurn() - 1)
+		end
+		//
+
 		table.remove(self.Players, ply)
 
 		self:ReloadPlayerList()
@@ -47,13 +59,13 @@ if SERVER then
 	end
 
 	function ENT:ReloadPlayerList()
+		local hostfound
 		for i = 1, 8 do
 			if self.Players[i] then
-				if i == 1 then
-					self.Players[i].Host = true
-				else
-					self.Players[i].Host = false
+				if self.Players[i].Host then
+					hostfound = true
 				end
+				self.Players[i].Index = i
 				self:SetDTInt(i, self.Players[i]:GetFlagInteger())
 				self:SetDTEntity(i, self.Players[i].Entity)
 			else
@@ -61,6 +73,7 @@ if SERVER then
 				self:SetDTEntity(i, NULL)
 			end
 		end
+		if not hostfound and self.Players[1] then self.Players[1].Host = true end
 		self:UpdatePropData()
 	end
 end
@@ -262,6 +275,9 @@ if SERVER then
 	end
 
 	function PLAYER:SetSpace(space)
+		if space > 40 then // make looping easier
+			space = space % 40
+		end
 		self.Space = space
 		self:UpdateFlags()
 	end
@@ -323,7 +339,7 @@ function PLAYER:GetProperties()
 	return self.Properties
 end
 
-function PLAYER:GetProperty(index)
+function PLAYER:HasProperty(index)
 	return self.Properties[index]
 end
 
@@ -352,7 +368,7 @@ if CLIENT then
 	local d = 1080
 	local x, y = ScrW() / 2 - d / 2, 0
 
-	// this math is all garbage but it works!!!!
+	// this math is all garbage but it works for TESTING!!!!
 	local function calcspace(space, i)
 		if space > 0 and space <= 11 then
 			local nx, ny = x + d - 18 * 3 - 13, y + d - 32

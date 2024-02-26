@@ -14,11 +14,13 @@ AddCSLuaFile("meta/board.lua")
 AddCSLuaFile("meta/property.lua")
 AddCSLuaFile("meta/player.lua")
 AddCSLuaFile("meta/states.lua")
+AddCSLuaFile("cards.lua")
 include("board_spaces.lua")
 include("meta/board.lua")
 include("meta/states.lua")
 include("meta/property.lua")
 include("meta/player.lua")
+include("cards.lua")
 
 function ENT:SetupCache(type, slot, name, func)
 	self:NetworkVar(type, slot, name)
@@ -41,6 +43,12 @@ function ENT:SetupDataTables()
 end
 
 function ENT:Think()
+	if #self.Players == 0 and self:GetState() ~= self.ST_EN.WAITING then
+		self:InitBoard()
+		self:NextThink(CurTime() + 1)
+		return true
+	end
+
 	if IsValid(self) and not self:CallState(self.State) then
 		self:NextThink(CurTime() + 3)
 		if CLIENT then self:SetNextClientThink(CurTime() + 3) end
