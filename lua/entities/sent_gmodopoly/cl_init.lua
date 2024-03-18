@@ -50,7 +50,7 @@ hook.Add("HUDPaint", "DrawMon", function()
 	// board info
 	draw.RoundedBox(0, x - 150, 0, 150, ScrH(), Color(30, 30, 30, 200))
 
-	draw.DrawText(board:GetStateName(), "CloseCaption_Bold", x - 150 / 2, 2, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+	draw.DrawText(board:GetStateName() .. "(" .. board:GetTurn() .. ")", "CloseCaption_Bold", x - 150 / 2, 2, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 
 	for k, v in pairs(board.Players) do
 		local nx, ny = x - 150, 40 + 80 * (k - 1)
@@ -107,7 +107,6 @@ hook.Add("PlayerButtonDown", "MN_TestInput", function(ply, key)
 end)
 
 hook.Add("OnPlayerChat", "MN_TestInput", function(ply, text)
-	print('help')
 	if not IsValid(board) or not text:StartsWith("!") or ply ~= LocalPlayer() then return end
 	board:SendCommand(text:sub(2))
 end)

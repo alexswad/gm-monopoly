@@ -18,6 +18,7 @@ function ENT:CreatePlayer(entity)
 	ply.Jailed = false
 	ply.Money = 0
 	ply.Space = 1
+	ply.JailCards = 0
 	ply.Roll = {0, 0}
 
 	return ply
@@ -78,26 +79,6 @@ if SERVER then
 	end
 end
 
-local housestoletter = {
-	[0] = "a",
-	[1] = "b",
-	[2] = "c",
-	[3] = "d",
-	[4] = "e",
-	[5] = "f",
-	[-1] = "m",
-}
-
-local lettertohouses = {
-	["a"] = 0,
-	["b"] = 1,
-	["c"] = 2,
-	["d"] = 3,
-	["e"] = 4,
-	["f"] = 5,
-	["m"] = -1,
-}
-
 if CLIENT then
 	function ENT:RebuildPlayerCache()
 		timer.Create("MN_RebuildPlayerCache", 0.1, 1, function()
@@ -143,30 +124,6 @@ if CLIENT then
 		timer.Remove("MN_RebuildPlayerInfoCache" .. ply)
 	end
 
-	function ENT:RebuildPropertyCache()
-		timer.Create("MN_RebuildPropCache", 0.1, 1, function()
-			self:BuildPropertyCache()
-		end)
-	end
-
-	function ENT:BuildPropertyCache()
-		for k, v in pairs(string.Explode("|", self:GetPropData())) do
-			local ply = self.Players[k]
-			if not ply then continue end
-
-			ply.Properties = {}
-			if not ply:IsValid() then continue end
-
-			for a, b in pairs (string.Explode(":", v)) do
-				local propid = tonumber(b:sub(1, -2))
-				if not propid then continue end
-				ply.Properties[propid] = self.Properties[propid]
-				self.Properties[propid].owner = ply
-				ply.Properties[propid]:SetRentLevel(lettertohouses[b:sub(#b)] or 0)
-			end
-		end
-		timer.Remove("MN_RebuildPropCache")
-	end
 elseif SERVER then
 	// server networking update stuff
 	function ENT:UpdatePlayerFlags(plyind)
@@ -174,20 +131,6 @@ elseif SERVER then
 		if not plytbl then return end
 
 		self:SetDTInt(plyind, plytbl:GetFlagInteger())
-	end
-
-	function ENT:UpdatePropData()
-		local str = ""
-		for i = 1, 8 do
-			local ply = self.Players[i]
-			if not IsValid(ply) then
-				if i < 8 then str = str .. "|" end
-				continue
-			end
-			str = str .. ply:GetPropDataString()
-			if i < 8 then str = str .. "|" end
-		end
-		self:SetPropData(str)
 	end
 end
 
@@ -205,12 +148,13 @@ function ENT:GetPlayerByIndex(i)
 end
 
 function ENT:GetPlayer(entity)
+	local found
 	for k, v in pairs(self.Players) do
-		if v.Entity == entity then
-			return v
+		if v.Entity == entity and (not found or v:IsTurn()) then
+			found = v
 		end
 	end
-	return false
+	return found or false
 end
 
 function ENT:IsTurn(ply)
@@ -222,7 +166,7 @@ function ENT:GetTurnPlayer()
 end
 
 function PLAYER:IsValid()
-	return self.Valid
+	return self.Valid and IsValid(self.Board)
 end
 
 function PLAYER:IsTurn()
@@ -283,8 +227,17 @@ if SERVER then
 	end
 
 	function PLAYER:SetMoney(money)
-		self.Money = money
+		self.Money = math.Clamp(money, 1, 32000)
 		self:UpdateFlags()
+	end
+
+	function PLAYER:AddMoney(money)
+		self.Money = math.Clamp(self.Money + money, 1, 32000)
+		self:UpdateFlags()
+	end
+
+	function PLAYER:CanAfford(money)
+		return self.Money >= money
 	end
 
 	function PLAYER:SetJailCards(jc)
@@ -356,7 +309,7 @@ end
 function PLAYER:GetPropDataString()
 	local str = ""
 	for a, b in pairs(self.Properties) do
-		str = str .. a .. (housestoletter[b] or "a") .. ":"
+		str = str .. a .. (self.Board.PROP_HL[b] or "a") .. ":"
 	end
 	str = str:sub(1, -2)
 	return str

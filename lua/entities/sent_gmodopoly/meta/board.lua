@@ -6,6 +6,7 @@ function ENT:InitBoard()
 	self.State = 1
 	self.StateVars = {}
 	self.Turn = 0
+	self.FreeParking = 0
 	self:GenerateProperties()
 end
 
@@ -25,6 +26,7 @@ function ENT:GenerateProperties()
 end
 
 if SERVER then
+	AccessorFunc(ENT, "FreeParking", "FreeParking")
 	ENT.Commands = {
 		["start"] = function(ent, ply, command, data, stvr)
 			if ply:GetIndex() == 1 and ent:GetState() == ent.ST_EN.WAITING then
@@ -46,7 +48,7 @@ if SERVER then
 			end
 		end,
 		["start_roll"] = function(ent, ply, command, data, stvr)
-			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and stvr.CanRoll then
+			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and ply:GetRollTotal() == 0 and stvr.CanRoll then
 				ply:StartRoll(2)
 				stvr.CanRoll = false
 			end
@@ -58,8 +60,8 @@ if SERVER then
 		["buy"] = function(ent, ply, command, data, stvr)
 			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and stvr.HasGone then
 				local p = ent.Properties[ply:GetSpace()]
-				if not p or ply:GetMoney() < p:GetPrice() or p:GetOwner() then return end
-				ply:SetMoney(ply:GetMoney() - p:GetPrice())
+				if not p or not ply:CanAfford(p:GetPrice()) or p:GetOwner() then return end
+				ply:AddMoney(-p:GetPrice())
 				ply:AddProperty(p.Index)
 			end
 		end,
@@ -110,6 +112,10 @@ if SERVER then
 	function ENT:NextTurn()
 		self.Turn = self.Turn + 1
 		if not self.Players[self.Turn] then self.Turn = 1 end
+	end
+
+	function ENT:AddParking(money)
+		self.FreeParking = self.FreeParking + money
 	end
 elseif CLIENT then
 	function ENT:SendCommand(command, data)
