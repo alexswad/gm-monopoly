@@ -41,7 +41,7 @@ local movetime = 0.3
 local startmovewait = 1
 
 local boff = 8
-AccessorFlags(ENT, "StateData", {{"MVSpace", 4}, {"MVStartSpace", 4}, {"MVEndTime", 6}}, boff, true)
+AccessorFlags(ENT, "StateData", {{"MVSpace", 4}, {"MVStartSpace", 4}, {"MVEndTime", 6}}, boff, 0)
 
 if CLIENT then
 	function ENT:RebuildStateCache(_, old, new)
@@ -112,7 +112,7 @@ elseif SERVER then
 			if v:IsRolling() then
 				proceed = false
 			end
-			v.TRollTotal = v:GetRollTotal()
+			v.TRollTotal = v:GetDiceTotal()
 		end
 		if proceed then
 			table.SortByMember(players, "TRollTotal")
@@ -134,12 +134,12 @@ elseif SERVER then
 	// TURN
 	function ENT.STATES:TURN_START(ply, players, properties)
 		self.CanRoll = self.CanRoll == nil or self.CanRoll
-		ply:SetRoll(0)
+		ply:SetDice(0)
 	end
 
 	function ENT.STATES:TURN(ply, players, properties)
-		if ply:GetRollTotal() ~= 0 and ply then
-			ply:StartMove(ply:GetSpace() + ply:GetRollTotal())
+		if ply:GetDiceTotal() ~= 0 and ply then
+			ply:StartMove(ply:GetSpace() + ply:GetDiceTotal())
 		end
 		self:NextThink(CurTime() + 1)
 		return true
@@ -147,7 +147,6 @@ elseif SERVER then
 
 	// MOVE
 	function ENT.STATES:MOVE_START(ply, players, properties)
-		self:SetMVEndTime(self:SpaceDistance(self:GetMVStartSpace(), self:GetMVSpace()) * movetime + startmovewait)
 		ply:SetSpace(self:GetMVSpace())
 	end
 
@@ -173,7 +172,7 @@ elseif SERVER then
 				end
 			end
 
-			if ply:GetRoll()[1] == ply:GetRoll()[2] then
+			if ply:GetDice1() == ply:GetDice2() then
 				pe:ChatPrint("Doubles!!")
 				self.CanRoll = true
 			end

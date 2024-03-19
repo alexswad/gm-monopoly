@@ -2,11 +2,9 @@ local PLAYER = {}
 PLAYER.__index = PLAYER
 
 AccessorFunc(PLAYER, "Entity", "Entity")
-AccessorFunc(PLAYER, "Money", "Money")
-AccessorFunc(PLAYER, "Jailed", "Jailed")
-AccessorFunc(PLAYER, "JailCards", "JailCards")
-AccessorFunc(PLAYER, "Space", "Space")
-
+AccessorFunc(PLAYER, "DrawSpace", "DrawSpace")
+AccessorFunc(PLAYER, "FlagInt", "FlagInt")
+AccessorFlags(PLAYER, "FlagInt", {{"Valid", 1}, {"Money", 15}, {"Space", 6}, {"GOJCards", 2}, {"Jailed", 1}, {"Dice1", 3}, {"Dice2", 3}}, nil, -1)
 
 function ENT:CreatePlayer(entity)
 	local ply = {}
@@ -14,12 +12,6 @@ function ENT:CreatePlayer(entity)
 	ply.Entity = entity
 	ply.Board = self
 	ply.Properties = {}
-	ply.Valid = true
-	ply.Jailed = false
-	ply.Money = 0
-	ply.Space = 1
-	ply.JailCards = 0
-	ply.Roll = {0, 0}
 
 	return ply
 end
@@ -29,8 +21,11 @@ if SERVER then
 		//if self:GetState() ~= self.ST.WAITING then return false end
 		// self:GetPlayer(entity) or
 		if not IsValid(entity) or table.Count(self.Players) >= 8 then return false end
-		local index = table.insert(self.Players, self:CreatePlayer(entity))
-		self.Players[index].Index = index
+		local ply = self:CreatePlayer(entity)
+		local index = table.insert(self.Players, ply)
+		ply.Index = index
+		ply:SetValid(1)
+		ply:SetSpace(1)
 
 		self:ReloadPlayerList()
 
@@ -67,7 +62,7 @@ if SERVER then
 					hostfound = true
 				end
 				self.Players[i].Index = i
-				self:SetDTInt(i, self.Players[i]:GetFlagInteger())
+				self:SetDTInt(i, self.Players[i]:GetFlagInt())
 				self:SetDTEntity(i, self.Players[i].Entity)
 			else
 				self:SetDTInt(i, 0)
@@ -81,6 +76,7 @@ end
 
 if CLIENT then
 	function ENT:RebuildPlayerCache()
+		print('help')
 		timer.Create("MN_RebuildPlayerCache", 0.1, 1, function()
 			self:BuildPlayerCache()
 		end)
@@ -89,48 +85,12 @@ if CLIENT then
 	function ENT:BuildPlayerCache()
 		self.Players = {}
 		for i = 1, 8 do
+			print(self:GetDTInt(i))
 			if bit.band(self:GetDTInt(i), 1) == 1 then
 				self.Players[i] = self:CreatePlayer(self:GetDTEntity(i))
-				self:BuildPlayerInfoCache(i)
 			end
 		end
 		self:BuildPropertyCache()
-	end
-
-	// 32bits >>roll(6)|injail(1)|goj(2|3)|pos(6|63)|money(15|32,767)|Alive/Valid(1)
-	function ENT:RebuildPlayerInfoCache(ply)
-		ply = tonumber(ply:sub(#ply))
-		if not ply then return end
-
-		timer.Create("MN_RebuildPlayerInfoCache" .. ply, 0.1, 1, function()
-			self:BuildPlayerInfoCache(ply)
-		end)
-	end
-
-	function ENT:BuildPlayerInfoCache(ply)
-		local plyobj = self.Players[ply]
-		if not plyobj then return end
-		local flags = self:GetDTInt(ply)
-
-		plyobj.Valid = tobool(bit.band(flags, 0x1))
-		if not plyobj.Valid then return end
-
-		plyobj.Money = bit.rshift(bit.band(flags, 0xFFFE), 1)
-		plyobj.Space = math.max(bit.rshift(bit.band(flags, 0x3F0000), 16), 1)
-		plyobj.JailCards = bit.rshift(bit.band(flags, 0xC00000), 22)
-		plyobj.Jailed = tobool(bit.rshift(bit.band(flags, 0x1000000), 24))
-		plyobj.Roll = {bit.rshift(bit.band(flags, 0xE000000), 25), bit.rshift(bit.band(flags, 0x70000000), 28)}
-
-		timer.Remove("MN_RebuildPlayerInfoCache" .. ply)
-	end
-
-elseif SERVER then
-	// server networking update stuff
-	function ENT:UpdatePlayerFlags(plyind)
-		local plytbl = self.Players[plyind]
-		if not plytbl then return end
-
-		self:SetDTInt(plyind, plytbl:GetFlagInteger())
 	end
 end
 
@@ -166,7 +126,7 @@ function ENT:GetTurnPlayer()
 end
 
 function PLAYER:IsValid()
-	return self.Valid and IsValid(self.Board)
+	return self:GetValid() == 1 and IsValid(self.Board)
 end
 
 function PLAYER:IsTurn()
@@ -180,96 +140,71 @@ function PLAYER:GetIndex()
 	return self.Index or false
 end
 
-local empty = {0, 0}
 function PLAYER:GetRoll()
-	if self.Roll[1] == 7 then return empty end
-	return self.Roll
+	if self:GetDice1() == 7 then return 0, 0 end
+	return self:GetDice1(), self:GetDice2()
 end
 
 function PLAYER:IsRolling()
-	if self.Roll[1] == 7 then
-		return true, self.Roll[2] == 7 and 2 or 1
+	if self:GetDice1() == 7 then
+		return self:GetDice2() == 7 and 2 or 1
 	end
 	return false
 end
 
-function PLAYER:GetRollTotal()
-	local d1, d2 = self.Roll[1], self.Roll[2]
+function PLAYER:GetDiceTotal()
+	local d1, d2 = self:GetDice1(), self:GetDice2()
 	return d1 ~= 7 and ((d1 and d2) and d1 + d2 or d1) or 0
 end
 
-// 32bits >>|injail(1)|goj(2|3)|pos(6|63)|money(15|32,767)|Alive/Valid(1)
+function PLAYER:SetDTInt(_, val)
+	if not IsValid(self.Board) or not self.Index then return end
+	self.Board:SetDTInt(self.Index, val)
+end
 
-function PLAYER:GetFlagInteger()
-	local int = 0
-	int = int + (self.Valid and 1 or 0)
-	int = int + bit.lshift(self.Money or 0, 1)
-	int = int + bit.lshift(self.Space or 0, 16)
-	int = int + bit.lshift(self.JailCards or 0, 22)
-	int = int + bit.lshift(self.Jailed and 1 or 0, 24)
-	int = int + bit.lshift(self.Roll[1] or 0, 25)
-	int = int + bit.lshift(self.Roll[2] or 0, 28)
-	return int
+function PLAYER:GetDTInt(_)
+	if not IsValid(self.Board) or not self.Index then return 0 end
+	return self.Board:GetDTInt(self.Index, val) or 0
 end
 
 if SERVER then
-	function PLAYER:UpdateFlags()
-		if not IsValid(self.Board) then return end
-		self.Board:UpdatePlayerFlags(self:GetIndex())
-	end
 
+	PLAYER.SetSpaceVar = PLAYER.SetSpace
 	function PLAYER:SetSpace(space)
 		if space > 40 then // make looping easier
 			space = space % 40
 		end
-		self.Space = space
-		self:UpdateFlags()
-	end
-
-	function PLAYER:SetMoney(money)
-		self.Money = math.Clamp(money, 1, 32000)
-		self:UpdateFlags()
+		self:SetSpaceVar(space)
 	end
 
 	function PLAYER:AddMoney(money)
-		self.Money = math.Clamp(self.Money + money, 1, 32000)
-		self:UpdateFlags()
+		self:SetMoney(math.Clamp(self:GetMoney() + money, 1, 32000))
 	end
 
 	function PLAYER:CanAfford(money)
-		return self.Money >= money
+		return self:GetMoney() >= money
 	end
 
-	function PLAYER:SetJailCards(jc)
-		self.JailCards = jc
-		self:UpdateFlags()
-	end
-
-	function PLAYER:SetRoll(roll)
-		self.Roll = istable(roll) and roll or {bit.band(roll, 0x7), bit.rshift(bit.band(roll, 0x38), 3)}
-		self:UpdateFlags()
+	function PLAYER:SetDice(dice1, dice2)
+		self:SetDice1(dice1 or 0)
+		self:SetDice2(dice2 or 0)
 	end
 
 	function PLAYER:StartRoll(n)
 		if n == 1 then
-			self.Roll = {7, 0}
+			self:SetDice(7, 0)
 		else
-			self.Roll = {7, 7}
+			self:SetDice(7, 7)
 		end
-		self:UpdateFlags()
 	end
 
 	function PLAYER:RollDice(n)
-		n = n or 1
-		local out, tab = 0, {0, 0}
-		for i = 1, n do
-			local b = math.random(6)
-			out = out + b
-			tab[i] = b
+		if n == 2 then
+			self:SetDice(math.random(6), math.random(6))
+		else
+			self:SetDice(math.random(6))
 		end
-		self.Roll = tab
-		self:UpdateFlags()
-		return tab, out
+		return self:GetDiceTotal()
 	end
 
 	function PLAYER:AddProperty(propid, noupdate)
@@ -361,13 +296,13 @@ if CLIENT then
 
 	function PLAYER:Draw()
 		local i = self:GetIndex()
-		local space = self:GetSpace()
+		local space = self.DrawSpace or self:GetSpace()
 		local nx, ny = calcspace(space, i)
 		surface.SetDrawColor(Color(10, 10, 10))
 		surface.DrawRect(nx, ny, 24, 24)
 		surface.SetDrawColor(self:GetColor())
 		surface.DrawRect(nx + 3, ny + 3, 18, 18)
-		draw.DrawText(self:GetRollTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+		draw.DrawText(self:GetDiceTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 	end
 
 	function PLAYER:DrawPos(nx, ny)
@@ -376,7 +311,7 @@ if CLIENT then
 		surface.DrawRect(nx, ny, 24, 24)
 		surface.SetDrawColor(self:GetColor())
 		surface.DrawRect(nx + 3, ny + 3, 18, 18)
-		draw.DrawText(self:GetRollTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+		draw.DrawText(self:GetDiceTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 	end
 
 	function PLAYER:GetColor()

@@ -79,7 +79,7 @@ hook.Add("HUDPaint", "DrawMon", function()
 		local ply = board:GetTurnPlayer()
 		if board:GetMVEndTime() ~= 0 and ply then
 			local dr, ms, mss, t = board:GetMVEndTime(), board:GetMVSpace(), board:GetMVStartSpace(), CurTime() - board:GetStartTime() - 1
-			ply:SetSpace(mss + math.ceil(board:SpaceDistance(mss, ms) * math.Clamp(t / dr, 0, 1)))
+			ply:SetDrawSpace(mss + math.ceil(board:SpaceDistance(mss, ms) * math.Clamp(t / dr, 0, 1)))
 		end
 
 		for k, v in pairs(board.Players) do
@@ -88,6 +88,7 @@ hook.Add("HUDPaint", "DrawMon", function()
 	else
 		// players
 		for k, v in pairs(board.Players) do
+			v:SetDrawSpace(nil)
 			v:Draw()
 		end
 	end

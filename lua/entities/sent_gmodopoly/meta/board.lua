@@ -1,4 +1,4 @@
-AccessorFlags(ENT, "StateData", {{"Turn", 4}, {"State", 4}}, nil, true)
+AccessorFlags(ENT, "StateData", {{"Turn", 4}, {"State", 4}}, nil, 0)
 
 function ENT:InitBoard()
 	self.Players = {}
@@ -43,11 +43,11 @@ if SERVER then
 		end,
 		["roll"] = function(ent, ply, command, data)
 			if ply:IsRolling() then
-				ply:RollDice(ply.Roll[2] == 7 and 2 or 1)
+				ply:RollDice(ply:IsRolling())
 			end
 		end,
 		["start_roll"] = function(ent, ply, command, data)
-			if ent:GetState() == ent.ST.TURN and ply:IsTurn() and ply:GetRollTotal() == 0 and ent.CanRoll then
+			if ent:GetState() == ent.ST.TURN and ply:IsTurn() and ply:GetDiceTotal() == 0 and ent.CanRoll then
 				ply:StartRoll(2)
 				ent.CanRoll = false
 			end

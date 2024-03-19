@@ -25,7 +25,7 @@ include("meta/property.lua")
 include("meta/player.lua")
 include("cards.lua")
 
-function ENT:SetupCache(type, slot, name, func)
+function ENT:EZNetworkVar(type, slot, name, func)
 	self:NetworkVar(type, slot, name)
 	if CLIENT and func then
 		self:NetworkVarNotify(name, func)
@@ -34,14 +34,14 @@ end
 
 function ENT:SetupDataTables()
 	for i = 1, 8 do
-		self:SetupCache("Entity", i, "Player" .. i, self.RebuildPlayerCache)
-		self:SetupCache("Int", i, "PlayerFlags" .. i, self.RebuildPlayerInfoCache)
+		self:EZNetworkVar("Entity", i, "Player" .. i, self.RebuildPlayerCache)
+		self:EZNetworkVar("Int", i, "PlayerFlags" .. i)
 	end
 
-	self:SetupCache("String", 0, "PropData", self.RebuildPropertyCache)
+	self:EZNetworkVar("String", 0, "PropData", self.RebuildPropertyCache)
 
-	self:SetupCache("Int", 0, "StateData", self.RebuildStateCache)
-	self:SetupCache("Int", 9, "StartTime")
+	self:EZNetworkVar("Int", 0, "StateData", self.RebuildStateCache)
+	self:EZNetworkVar("Int", 9, "StartTime")
 end
 
 function ENT:Think()
