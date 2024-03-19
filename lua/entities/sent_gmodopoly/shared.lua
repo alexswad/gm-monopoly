@@ -10,11 +10,14 @@ ENT.Category = "Fun + Games"
 
 
 AddCSLuaFile("board_spaces.lua")
+AddCSLuaFile("meta/flags.lua")
 AddCSLuaFile("meta/board.lua")
 AddCSLuaFile("meta/property.lua")
 AddCSLuaFile("meta/player.lua")
 AddCSLuaFile("meta/states.lua")
 AddCSLuaFile("cards.lua")
+
+AccessorFlags = include("meta/flags.lua")
 include("board_spaces.lua")
 include("meta/board.lua")
 include("meta/states.lua")
@@ -37,19 +40,18 @@ function ENT:SetupDataTables()
 
 	self:SetupCache("String", 0, "PropData", self.RebuildPropertyCache)
 
-	//IDEA:  23 End Time | 3 Player #'s Turn | 5 State
 	self:SetupCache("Int", 0, "StateData", self.RebuildStateCache)
-	self:SetupCache("Int", 9, "StartTime", self.BuildStateCache)
+	self:SetupCache("Int", 9, "StartTime")
 end
 
 function ENT:Think()
-	if #self.Players == 0 and self:GetState() ~= self.ST_EN.WAITING then
+	if #self.Players == 0 and self:GetState() ~= self.ST.WAITING then
 		self:InitBoard()
 		self:NextThink(CurTime() + 1)
 		return true
 	end
 
-	if IsValid(self) and not self:CallState(self.State) then
+	if IsValid(self) and not self:CallState(self:GetState()) then
 		self:NextThink(CurTime() + 3)
 		if CLIENT then self:SetNextClientThink(CurTime() + 3) end
 	end

@@ -1,12 +1,11 @@
-AccessorFunc(ENT, "Turn", "Turn")
-AccessorFunc(ENT, "State", "State")
+AccessorFlags(ENT, "StateData", {{"Turn", 4}, {"State", 4}}, nil, true)
 
 function ENT:InitBoard()
 	self.Players = {}
-	self.State = 1
-	self.StateVars = {}
-	self.Turn = 0
-	self.FreeParking = 0
+	if SERVER then
+		self:SetState(1)
+		self:SetFreeParking(0)
+	end
 	self:GenerateProperties()
 end
 
@@ -28,58 +27,57 @@ end
 if SERVER then
 	AccessorFunc(ENT, "FreeParking", "FreeParking")
 	ENT.Commands = {
-		["start"] = function(ent, ply, command, data, stvr)
-			if ply:GetIndex() == 1 and ent:GetState() == ent.ST_EN.WAITING then
+		["start"] = function(ent, ply, command, data)
+			if ply:GetIndex() == 1 and ent:GetState() == ent.ST.WAITING then
 				for k, v in pairs(ent.Players) do
 					if not IsValid(v.Entity) then ent:RemovePlayer(k) end
 				end
 				ent:SetState("ROLL_FOR_ORDER", true)
 			end
 		end,
-		["settings"] = function(ent, ply, command, data, stvr)
+		["settings"] = function(ent, ply, command, data)
 
 		end,
-		["kick"] = function(ent, ply, command, data, stvr)
+		["kick"] = function(ent, ply, command, data)
 			ent:RemovePly(ply)
 		end,
-		["roll"] = function(ent, ply, command, data, stvr)
+		["roll"] = function(ent, ply, command, data)
 			if ply:IsRolling() then
 				ply:RollDice(ply.Roll[2] == 7 and 2 or 1)
 			end
 		end,
-		["start_roll"] = function(ent, ply, command, data, stvr)
-			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and ply:GetRollTotal() == 0 and stvr.CanRoll then
+		["start_roll"] = function(ent, ply, command, data)
+			if ent:GetState() == ent.ST.TURN and ply:IsTurn() and ply:GetRollTotal() == 0 and ent.CanRoll then
 				ply:StartRoll(2)
-				stvr.CanRoll = false
+				ent.CanRoll = false
 			end
 		end,
-		["start_trade"] = function(ent, ply, command, data, stvr)
+		["start_trade"] = function(ent, ply, command, data)
 
 		end,
 		// temp basic implementation without auctioning for prototyping
-		["buy"] = function(ent, ply, command, data, stvr)
-			if ent:GetState() == ent.ST_EN.TURN and ply:IsTurn() and stvr.HasGone then
+		["buy"] = function(ent, ply, command, data)
+			if ent:GetState() == ent.ST.TURN and ply:IsTurn() and ent.HasGone then
 				local p = ent.Properties[ply:GetSpace()]
 				if not p or not ply:CanAfford(p:GetPrice()) or p:GetOwner() then return end
 				ply:AddMoney(-p:GetPrice())
 				ply:AddProperty(p.Index)
 			end
 		end,
-		["mortage"] = function(ent, ply, command, data, stvr)
+		["mortage"] = function(ent, ply, command, data)
 
 		end,
-		["offer_trade"] = function(ent, ply, command, data, stvr)
+		["offer_trade"] = function(ent, ply, command, data)
 
 		end,
-		["sethouses"] = function(ent, ply, command, data, stvr)
+		["sethouses"] = function(ent, ply, command, data)
 
 		end,
-		["bid"] = function(ent, ply, command, data, stvr)
+		["bid"] = function(ent, ply, command, data)
 
 		end,
-		["end"] = function(ent, ply, command, data, stvr)
-			if not ply:IsTurn() or stvr.CanRoll or ent:GetState() ~= ent.ST_EN.TURN then print("cant_end") return end
-			ent:ClearStateVars()
+		["end"] = function(ent, ply, command, data)
+			if not ply:IsTurn() or ent.CanRoll or ent:GetState() ~= ent.ST.TURN then print("cant_end") return end
 			ent:SetTurn((ent:GetTurn() % #ent.Players) + 1)
 			ent:SetState("TURN", true)
 		end,
@@ -101,21 +99,16 @@ if SERVER then
 
 	function ENT:HandleInput(ply, command, data)
 		if not self.Commands[command] then return end
-		self.Commands[command](self, self:GetPlayer(ply), command, data, self.StateVars)
-	end
-
-	function ENT:SetTurn(turn)
-		self.Turn = turn
-		self:UpdateStateData()
+		self.Commands[command](self, self:GetPlayer(ply), command, data)
 	end
 
 	function ENT:NextTurn()
-		self.Turn = self.Turn + 1
-		if not self.Players[self.Turn] then self.Turn = 1 end
+		self:SetTurn(self:GetTurn() + 1)
+		if not self.Players[self:GetTurn()] then self:SetTurn(1) end
 	end
 
 	function ENT:AddParking(money)
-		self.FreeParking = self.FreeParking + money
+		self:SetFreeParking(self:GetFreeParking() + money)
 	end
 elseif CLIENT then
 	function ENT:SendCommand(command, data)

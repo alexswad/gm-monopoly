@@ -26,7 +26,7 @@ end
 
 if SERVER then
 	function ENT:AddPlayer(entity)
-		//if self:GetState() ~= self.ST_EN.WAITING then return false end
+		//if self:GetState() ~= self.ST.WAITING then return false end
 		// self:GetPlayer(entity) or
 		if not IsValid(entity) or table.Count(self.Players) >= 8 then return false end
 		local index = table.insert(self.Players, self:CreatePlayer(entity))
@@ -39,7 +39,7 @@ if SERVER then
 
 	function ENT:RemovePlayer(entity)
 		local ply = isnumber(entity) and entity or self:GetPlayerIndex(entity)
-		//if not ply or self:GetState() ~= self.ST_EN.WAITING then return false end
+		//if not ply or self:GetState() ~= self.ST.WAITING then return false end
 
 		// this needs some work
 		if self:GetTurn() == ply then

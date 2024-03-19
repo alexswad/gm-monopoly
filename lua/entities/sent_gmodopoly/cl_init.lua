@@ -41,7 +41,7 @@ hook.Add("HUDPaint", "DrawMon", function()
 	if not board:GetLocalPlayer() then board = nil return end
 	render.DrawTextureToScreenRect(mat, x, y, d, d)
 
-	if board:GetState() == board.ST_EN.WAITING then
+	if board:GetState() == board.ST.WAITING then
 		draw.SimpleTextOutlined("PLAYER 1 PRESS SPACE TO START", "CloseCaption_Bold", x + d / 2, y + d / 2 - 50, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 4, Color(0, 0, 0))
 	elseif board:GetLocalPlayer():IsRolling() then
 		draw.SimpleTextOutlined("PRESS SPACE TO ROLL!!!", "CloseCaption_Bold", x + d / 2, y + d / 2 - 50, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 4, Color(0, 0, 0))
@@ -70,16 +70,15 @@ hook.Add("HUDPaint", "DrawMon", function()
 	end
 
 
-	if board:GetState() == board.ST_EN.ROLL_FOR_ORDER then
+	if board:GetState() == board.ST.ROLL_FOR_ORDER then
 		local c = table.Count(board.Players)
 		for k, v in pairs(board.Players) do
 			v:DrawPos(x + d / 2 - c * 30 + k * 30, y + d / 2)
 		end
-	elseif board:GetState() == board.ST_EN.MOVE then
+	elseif board:GetState() == board.ST.MOVE then
 		local ply = board:GetTurnPlayer()
-		local vars = board.StateVars
-		if vars.MoveEndTime and ply then
-			local dr, ms, mss, t = vars.MoveEndTime, vars.MoveSpace, vars.MoveStartSpace, CurTime() - board:GetStartTime() - 1
+		if board:GetMVEndTime() ~= 0 and ply then
+			local dr, ms, mss, t = board:GetMVEndTime(), board:GetMVSpace(), board:GetMVStartSpace(), CurTime() - board:GetStartTime() - 1
 			ply:SetSpace(mss + math.ceil(board:SpaceDistance(mss, ms) * math.Clamp(t / dr, 0, 1)))
 		end
 
@@ -97,7 +96,7 @@ end)
 hook.Add("PlayerButtonDown", "MN_TestInput", function(ply, key)
 	if not IsValid(board) or not board:GetLocalPlayer() then return end
 	local bply = board:GetLocalPlayer()
-	if board:GetState() == board.ST_EN.WAITING and key == KEY_SPACE then
+	if board:GetState() == board.ST.WAITING and key == KEY_SPACE then
 		board:SendCommand("start")
 	end
 
