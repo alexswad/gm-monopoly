@@ -24,7 +24,7 @@ if SERVER then
 		local ply = self:CreatePlayer(entity)
 		local index = table.insert(self.Players, ply)
 		ply.Index = index
-		ply:SetValid(1)
+		ply:SetValid(true)
 		ply:SetSpace(1)
 
 		self:ReloadPlayerList()
@@ -76,7 +76,7 @@ end
 
 if CLIENT then
 	function ENT:RebuildPlayerCache()
-		print('help')
+		print("help")
 		timer.Create("MN_RebuildPlayerCache", 0.1, 1, function()
 			self:BuildPlayerCache()
 		end)
@@ -126,7 +126,7 @@ function ENT:GetTurnPlayer()
 end
 
 function PLAYER:IsValid()
-	return self:GetValid() == 1 and IsValid(self.Board)
+	return self:GetValid() and IsValid(self.Board)
 end
 
 function PLAYER:IsTurn()
@@ -169,7 +169,6 @@ end
 
 if SERVER then
 
-	PLAYER.SetSpaceVar = PLAYER.SetSpace
 	function PLAYER:SetSpace(space)
 		if space > 40 then // make looping easier
 			space = space % 40
@@ -188,6 +187,12 @@ if SERVER then
 	function PLAYER:SetDice(dice1, dice2)
 		self:SetDice1(dice1 or 0)
 		self:SetDice2(dice2 or 0)
+	end
+
+	// DEBUG
+	function PLAYER:SetDiceTotal(total)
+		self:SetDice1(math.min(6, total))
+		self:SetDice2(math.Clamp(total - 6, 0, 6))
 	end
 
 	function PLAYER:StartRoll(n)

@@ -52,6 +52,13 @@ if SERVER then
 				ent.CanRoll = false
 			end
 		end,
+		//debug
+		["move"] = function(ent, ply, command, data)
+			print(data[2])
+			if ply:IsTurn() and ply:GetDiceTotal() == 0 then
+				ply:SetDiceTotal(tonumber(data[2]) or 0)
+			end
+		end,
 		["start_trade"] = function(ent, ply, command, data)
 
 		end,
@@ -80,6 +87,7 @@ if SERVER then
 			if not ply:IsTurn() or ent.CanRoll or ent:GetState() ~= ent.ST.TURN then print("cant_end") return end
 			ent:SetTurn((ent:GetTurn() % #ent.Players) + 1)
 			ent:SetState("TURN", true)
+			print("end_turn")
 		end,
 	}
 

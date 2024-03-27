@@ -41,7 +41,7 @@ local movetime = 0.3
 local startmovewait = 1
 
 local boff = 8
-AccessorFlags(ENT, "StateData", {{"MVSpace", 4}, {"MVStartSpace", 4}, {"MVEndTime", 6}}, boff, 0)
+AccessorFlags(ENT, "StateData", {{"MVSpace", 6}, {"MVStartSpace", 6}, {"MVEndTime", 6}}, boff, 0)
 
 if CLIENT then
 	function ENT:RebuildStateCache(_, old, new)
@@ -56,13 +56,12 @@ if CLIENT then
 		end
 	end
 elseif SERVER then
-	ENT.SetStateVar = ENT.SetState
-	function ENT:SetState(state)
+	function ENT:SetState(state, cleanup)
 		if isstring(state) then
 			state = self.ST[state]
 		end
 
-		self:CallState(self:GetStateString() .. "_END")
+		self:CallState(self:GetStateString() .. "_END", cleanup)
 
 		self:ClearCustomStateData()
 
@@ -117,7 +116,7 @@ elseif SERVER then
 		if proceed then
 			table.SortByMember(players, "TRollTotal")
 			self:ReloadPlayerList()
-			timer.Simple(1, function()
+			timer.Simple(0.9, function()
 				if not IsValid(self) then return end
 				for k, v in pairs(players) do
 					v:SetMoney(1500)
@@ -127,7 +126,7 @@ elseif SERVER then
 			end)
 		end
 
-		self:NextThink(CurTime() + 1)
+		self:NextThink(CurTime() + 1.1)
 		return true
 	end
 
@@ -143,6 +142,13 @@ elseif SERVER then
 		end
 		self:NextThink(CurTime() + 1)
 		return true
+	end
+
+	function ENT.STATES:TURN_END(ply, players, properties, clean)
+		if clean then
+			self.CanRoll = nil
+			self.HasGone = nil
+		end
 	end
 
 	// MOVE
@@ -180,38 +186,63 @@ elseif SERVER then
 
 			if p == "chance" then
 				self:SetState("CHANCE")
+				return
 			elseif p == "community" then
 				self:SetState("COMMUNITY")
+				return
 			elseif p == "income" then
 				if ply:CanAfford(200) then
 					ply:AddMoney(-200)
 					self:AddParking(200)
 					self:SetState("TURN")
+					return
 				else
 					self:StartDebt(ply, 200)
+					return
 				end
 			elseif p == "luxury" then
 				if ply:CanAfford(100, true) then
 					ply:AddMoney(-100)
 					self:AddParking(100)
 					self:SetState("TURN")
+					return
 				else
 					self:StartDebt(ply, 100)
+					return
 				end
 			elseif p == "freeparking" then
 				if self:GetFreeParking() > 0 then
 					ply:AddMoney(self:GetFreeParking())
 					self:SetFreeParking(0)
 				end
-			else
-				self:SetState("TURN")
 			end
+
+			self:SetState("TURN")
 		end
 	end
 
-	function ENT.STATES:MOVE_END(ply, players, properties)
+	function ENT.STATES:MOVE_END(ply, players, properties, clean)
 		if IsValid(ply) then
 			ply:SetSpace(self:GetMVSpace())
+		end
+	end
+
+	function ENT.STATES:COMMUNITY_START(ply, players, properties)
+
+	end
+
+	function ENT.STATES:CHANCE_START(ply, players, properties)
+
+	end
+
+	function ENT:DrawPlayCard(ply)
+		if self:GetState() ~= self.ST.COMMUNITY and self:GetState() ~= self.ST.CHANCE then return end
+	end
+
+	function ENT.STATES:GO_TO_JAIL_START(ply, players, properties)
+		if IsValid(ply) then
+			ply:SetSpace(10)
+			ply:SetJailed(1)
 		end
 	end
 end
