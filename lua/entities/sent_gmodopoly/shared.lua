@@ -2,28 +2,30 @@ ENT.Type = "anim"
 ENT.Base = "base_gmodentity"
 
 ENT.PrintName = "Monopoly Board"
-ENT.Author = "Jenga"
+ENT.Author = "Axel"
 ENT.Model = "models/props/de_tides/restaurant_table.mdl"
 ENT.Spawnable = true
 ENT.AdminSpawnable = true
 ENT.Category = "Fun + Games"
 
-
 AddCSLuaFile("board_spaces.lua")
+AddCSLuaFile("cards_cfg.lua")
 AddCSLuaFile("meta/flags.lua")
 AddCSLuaFile("meta/board.lua")
 AddCSLuaFile("meta/property.lua")
 AddCSLuaFile("meta/player.lua")
 AddCSLuaFile("meta/states.lua")
-AddCSLuaFile("cards.lua")
+AddCSLuaFile("meta/cards.lua")
 
 AccessorFlags = include("meta/flags.lua")
 include("board_spaces.lua")
+include("cards_cfg.lua")
 include("meta/board.lua")
 include("meta/states.lua")
 include("meta/property.lua")
 include("meta/player.lua")
-include("cards.lua")
+include("meta/cards.lua")
+AccessorFlags = nil
 
 function ENT:EZNetworkVar(type, slot, name, func)
 	self:NetworkVar(type, slot, name)

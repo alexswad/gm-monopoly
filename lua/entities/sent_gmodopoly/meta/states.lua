@@ -41,20 +41,26 @@ local movetime = 0.3
 local startmovewait = 1
 
 local boff = 8
-AccessorFlags(ENT, "StateData", {{"MVSpace", 6}, {"MVStartSpace", 6}, {"MVEndTime", 6}}, boff, 0)
+AccessorFlags(ENT, "StateData", {{"MVSpace", 6}, {"MVStartSpace", 6}, {"MVEndTime", 6}}, boff, 0) // MOVE
+AccessorFlags(ENT, "StateData", {{"CCard", 7}}, boff, 0) // CHANCE/COMMUNITY
 
 if CLIENT then
 	function ENT:RebuildStateCache(_, old, new)
 		if old == new then return end
-		local ostate, nstate = self.State, bit.band(new, 0x1F)
+		local ostate, nstate = self.State, bit.band(new, 0xFF)
 		if ostate ~= nstate then
 			self:CallState(self:GetStateString(ostate) .. "_END")
-			timer.Create("MN_StartState", 0, 0, function()
+			timer.Create("MN_StartState", 0.01, 1, function()
 				if not IsValid(self) then return end
 				self:CallState(self:GetStateString(nstate) .. "_START")
 			end)
 		end
 	end
+
+	function ENT.STATES:CHANCE_START(ply, players, properties)
+		PrintTable(self:GetCurrentCard())
+	end
+
 elseif SERVER then
 	function ENT:SetState(state, cleanup)
 		if isstring(state) then
@@ -63,7 +69,10 @@ elseif SERVER then
 
 		self:CallState(self:GetStateString() .. "_END", cleanup)
 
+		self:SetStartTime(CurTime())
 		self:ClearCustomStateData()
+		self:NextThink(CurTime() + 1)
+		if CLIENT then self:SetNextClientThink(CurTime() + 1) end
 
 		timer.Create("MN_SetState", 0.1, 1, function()
 			if not IsValid(self) then return end
@@ -74,17 +83,6 @@ elseif SERVER then
 
 	function ENT:ClearCustomStateData()
 		self:SetStateData(bit.band(self.StateData, 2 ^ boff - 1))
-	end
-
-	function ENT:StartMove(ply, newspace)
-		ply = isnumber(ply) and self:GetPlayerByIndex(ply) or ply
-		if not ply or not newspace then return end
-		self:SetTurn(ply.Index)
-		self:SetStartTime(CurTime())
-		self:SetState("MOVE")
-		self:SetMVSpace(newspace)
-		self:SetMVStartSpace(ply:GetSpace())
-		self:SetMVEndTime(self:SpaceDistance(self:GetMVStartSpace(), newspace) * movetime + startmovewait)
 	end
 
 	// STATES
@@ -152,6 +150,16 @@ elseif SERVER then
 	end
 
 	// MOVE
+	function ENT:StartMove(ply, newspace)
+		ply = isnumber(ply) and self:GetPlayerByIndex(ply) or ply
+		if not ply or not newspace then return end
+		self:SetTurn(ply.Index)
+		self:SetState("MOVE")
+		self:SetMVSpace(newspace)
+		self:SetMVStartSpace(ply:GetSpace())
+		self:SetMVEndTime(self:SpaceDistance(self:GetMVStartSpace(), newspace) * movetime + startmovewait)
+	end
+
 	function ENT.STATES:MOVE_START(ply, players, properties)
 		ply:SetSpace(self:GetMVSpace())
 	end
@@ -162,19 +170,15 @@ elseif SERVER then
 			local pe = ply:GetEntity()
 			if istable(p) and not p:GetOwner() then
 				pe:ChatPrint("You can buy this!!! type !buy!!!")
-			elseif istable(p) and not p:GetMortaged() and not ply:HasProperty(p.index) then
+			elseif istable(p) and not p:GetMortaged() and not ply:HasProperty(p.Index) then
 				if p.group == "utility" then
 					self:SetState("ROLL_UTILITY")
 				else
 					local rent = p:GetRent()
 					pe:ChatPrint("You OWE!!!! $" .. rent)
 
-					if ply:CanAfford(rent) then
-						ply:AddMoney(-rent)
-						self:SetState("TURN")
-					else
-						self:StartDebt(ply, rent, p:GetOwner())
-					end
+					ply:AddMoney(-rent)
+					self:SetState("TURN")
 				end
 			end
 
@@ -191,25 +195,15 @@ elseif SERVER then
 				self:SetState("COMMUNITY")
 				return
 			elseif p == "income" then
-				if ply:CanAfford(200) then
-					ply:AddMoney(-200)
-					self:AddParking(200)
-					self:SetState("TURN")
-					return
-				else
-					self:StartDebt(ply, 200)
-					return
-				end
+				ply:AddMoney(-200)
+				self:AddParking(200)
+				self:SetState("TURN")
+				return
 			elseif p == "luxury" then
-				if ply:CanAfford(100, true) then
-					ply:AddMoney(-100)
-					self:AddParking(100)
-					self:SetState("TURN")
-					return
-				else
-					self:StartDebt(ply, 100)
-					return
-				end
+				ply:AddMoney(-100)
+				self:AddParking(100)
+				self:SetState("TURN")
+				return
 			elseif p == "freeparking" then
 				if self:GetFreeParking() > 0 then
 					ply:AddMoney(self:GetFreeParking())
@@ -228,22 +222,26 @@ elseif SERVER then
 	end
 
 	function ENT.STATES:COMMUNITY_START(ply, players, properties)
-
+		local card = self:DrawCommunityCard()
+		self:SetCCard(card._index)
 	end
 
 	function ENT.STATES:CHANCE_START(ply, players, properties)
-
+		local card = self:DrawChanceCard()
+		self:SetCCard(card._index)
 	end
 
-	function ENT:DrawPlayCard(ply)
-		if self:GetState() ~= self.ST.COMMUNITY and self:GetState() ~= self.ST.CHANCE then return end
+	function ENT.STATES:COMMUNITY(ply, players, properties)
+		self:CardEffect(ply, self:GetCurrentCard())
+		self:NextThink(CurTime() + 100)
+		return true
 	end
+	ENT.STATES.CHANCE = COMMUNITY
 
 	function ENT.STATES:GO_TO_JAIL_START(ply, players, properties)
 		if IsValid(ply) then
 			ply:SetSpace(10)
-			ply:SetJailed(1)
+			ply:SetJailed(true)
 		end
 	end
 end
-

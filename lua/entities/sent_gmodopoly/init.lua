@@ -25,6 +25,7 @@ function ENT:Initialize()
 	self:SetUseType(SIMPLE_USE)
 
 	self:InitBoard()
+	self:CreateBoardModel()
 end
 
 function ENT:Use(ent)
@@ -33,4 +34,27 @@ function ENT:Use(ent)
 	else
 		self:AddPlayer(ent)
 	end
+end
+
+ENT.BoardModel = "models/props_phx/games/chess/board.mdl"
+ENT.BoardPos = Vector(0, 0, 29)
+ENT.BoardScale = 0.17
+ENT.BoardAngle = Angle(-90, 0, 0)
+
+function ENT:CreateBoardModel()
+	if IsValid(self.BoardEntity) then
+		self.BoardEntity:Remove()
+	end
+
+	local b = ents.Create("prop_dynamic")
+	b:SetModel(self.BoardModel)
+	b:SetModelScale(self.BoardScale)
+	b:SetPos(self:LocalToWorld(self.BoardPos))
+	b:SetAngles(self:LocalToWorldAngles(self.BoardAngle))
+	b:SetParent(self)
+	b:Spawn()
+	b:DeleteOnRemove(self)
+	b:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+	self:DeleteOnRemove(b)
+	self.BoardEntity = b
 end

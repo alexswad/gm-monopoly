@@ -34,18 +34,7 @@ if SERVER then
 
 	function ENT:RemovePlayer(entity)
 		local ply = isnumber(entity) and entity or self:GetPlayerIndex(entity)
-		//if not ply or self:GetState() ~= self.ST.WAITING then return false end
-
-		// this needs some work
-		if self:GetTurn() == ply then
-			self:NextTurn()
-			if ply ~= 8 then
-				self:SetTurn(self:GetTurn() - 1)
-			end
-		elseif self:GetTurn() > ply then
-			self:SetTurn(self:GetTurn() - 1)
-		end
-		//
+		if not ply or self:GetState() ~= self.ST.WAITING then return false end
 
 		table.remove(self.Players, ply)
 
@@ -55,12 +44,8 @@ if SERVER then
 	end
 
 	function ENT:ReloadPlayerList()
-		local hostfound
 		for i = 1, 8 do
 			if self.Players[i] then
-				if self.Players[i].Host then
-					hostfound = true
-				end
 				self.Players[i].Index = i
 				self:SetDTInt(i, self.Players[i]:GetFlagInt())
 				self:SetDTEntity(i, self.Players[i].Entity)
@@ -69,7 +54,6 @@ if SERVER then
 				self:SetDTEntity(i, NULL)
 			end
 		end
-		if not hostfound and self.Players[1] then self.Players[1].Host = true end
 		self:UpdatePropData()
 	end
 end
@@ -126,7 +110,7 @@ function ENT:GetTurnPlayer()
 end
 
 function PLAYER:IsValid()
-	return self:GetValid() and IsValid(self.Board)
+	return self:GetValid() and IsValid(self.Board) and IsValid(self.Entity)
 end
 
 function PLAYER:IsTurn()
@@ -168,7 +152,6 @@ function PLAYER:GetDTInt(_)
 end
 
 if SERVER then
-
 	function PLAYER:SetSpace(space)
 		if space > 40 then // make looping easier
 			space = space % 40
@@ -226,6 +209,10 @@ if SERVER then
 		if not noupdate then self.Board:UpdatePropData() end
 	end
 
+	function PLAYER:AddGOJCard()
+		if self:GetGOJCards() >= 3 then return end
+		self:SetGOJCards(self:GetGOJCards() + 1)
+	end
 end
 
 function PLAYER:GetProperties()

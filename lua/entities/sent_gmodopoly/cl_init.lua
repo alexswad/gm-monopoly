@@ -24,8 +24,19 @@ local porder = {
 }
 
 
+
+
+
+
+
+
+
+
+
+
 // TESTING PURPOSES WILL NOT BE FINAL PRODUCT
-hook.Add("HUDPaint", "DrawMon", function()
+//hook.Add("HUDPaint", "DrawMon", function()
+print("HUDPaint", "DrawMon", function()
 	if not IsValid(board) then
 		for k, v in pairs(ents.FindByClass("sent_gmodopoly")) do
 			if v:GetLocalPlayer() then
@@ -94,17 +105,17 @@ hook.Add("HUDPaint", "DrawMon", function()
 	end
 end)
 
-hook.Add("PlayerButtonDown", "MN_TestInput", function(ply, key)
-	if not IsValid(board) or not board:GetLocalPlayer() then return end
-	local bply = board:GetLocalPlayer()
-	if board:GetState() == board.ST.WAITING and key == KEY_SPACE then
-		board:SendCommand("start")
-	end
+-- hook.Add("PlayerButtonDown", "MN_TestInput", function(ply, key)
+-- 	if not IsValid(board) or not board:GetLocalPlayer() then return end
+-- 	local bply = board:GetLocalPlayer()
+-- 	if board:GetState() == board.ST.WAITING and key == KEY_SPACE then
+-- 		board:SendCommand("start")
+-- 	end
 
-	if bply:IsRolling() and key == KEY_SPACE  then
-		board:SendCommand("roll")
-	end
-end)
+-- 	if bply:IsRolling() and key == KEY_SPACE  then
+-- 		board:SendCommand("roll")
+-- 	end
+-- end)
 
 //debug
 hook.Add("OnPlayerChat", "MN_TestInput", function(ply, text)

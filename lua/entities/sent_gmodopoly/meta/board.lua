@@ -5,6 +5,7 @@ function ENT:InitBoard()
 	if SERVER then
 		self:SetState(1)
 		self:SetFreeParking(0)
+		self:InitCards()
 	end
 	self:GenerateProperties()
 end

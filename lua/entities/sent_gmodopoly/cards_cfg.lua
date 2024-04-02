@@ -11,7 +11,7 @@ ENT.ChanceCards = {
 	{"Speeding Fine. Pay $15", money = -15},
 	{"D.U.I. Fine. Pay $50", money = -50},
 	{"Holiday fund matures. Collect $100", money = 100},
-	{"You have been elected Chairman of the Board. Pay each player $50", function() end},
+	{"You have been elected Chairman of the Board. Pay each player $50", payeach = 50},
 	{"Your building loan matures. Collect $150", money = 150},
 	{"Make general repairs on all your property. For each house pay $25. For each hotel pay $100.", repairs = {25, 100}},
 	{"Take a trip to Reading Railroad. If you pass Go, collect $200", space = 6},
@@ -36,3 +36,5 @@ ENT.CommunityCards = {
 	{"You inherit $100. Congratulations?", money = 100},
 	{"Pay your insurance premium $50", money = -50},
 }
+
+ENT.Cards = {ENT.ChanceCards, ENT.CommunityCards}
