@@ -1,36 +1,9 @@
 include("shared.lua")
+include("vgui/panel.lua")
 
 function ENT:Initialize()
 	self:InitBoard()
 end
-
-local mat
-local board
-
-local d = 1080
-local x, y = ScrW() / 2 - d / 2, 0
-
-local porder = {
-	"brown",
-	"cyan",
-	"pink",
-	"orange",
-	"railroad",
-	"red",
-	"yellow",
-	"utility",
-	"green",
-	"blue",
-}
-
-
-
-
-
-
-
-
-
 
 
 

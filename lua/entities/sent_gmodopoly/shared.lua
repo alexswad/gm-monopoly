@@ -3,7 +3,7 @@ ENT.Base = "base_gmodentity"
 
 ENT.PrintName = "Monopoly Board"
 ENT.Author = "Axel"
-ENT.Model = "models/props/de_tides/restaurant_table.mdl"
+ENT.Model = "models/props_c17/FurnitureTable001a.mdl"
 ENT.Spawnable = true
 ENT.AdminSpawnable = true
 ENT.Category = "Fun + Games"
@@ -16,6 +16,8 @@ AddCSLuaFile("meta/property.lua")
 AddCSLuaFile("meta/player.lua")
 AddCSLuaFile("meta/states.lua")
 AddCSLuaFile("meta/cards.lua")
+
+AddCSLuaFile("vgui/panel.lua")
 
 AccessorFlags = include("meta/flags.lua")
 include("board_spaces.lua")
@@ -46,7 +48,13 @@ function ENT:SetupDataTables()
 	self:EZNetworkVar("Int", 9, "StartTime")
 end
 
+
 function ENT:Think()
+	if CLIENT and not IsValid(CMONPANEL) then
+		CMONPANEL = vgui.CreateFromTable(MONPANEL)
+		CMONPANEL.Board = self
+	end
+
 	if #self.Players == 0 and self:GetState() ~= self.ST.WAITING then
 		self:InitBoard()
 		self:NextThink(CurTime() + 1)

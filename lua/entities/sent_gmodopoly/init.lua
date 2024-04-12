@@ -37,7 +37,7 @@ function ENT:Use(ent)
 end
 
 ENT.BoardModel = "models/props_phx/games/chess/board.mdl"
-ENT.BoardPos = Vector(0, 0, 29)
+ENT.BoardPos = Vector(0, 0, 15)
 ENT.BoardScale = 0.17
 ENT.BoardAngle = Angle(-90, 0, 0)
 
@@ -53,6 +53,7 @@ function ENT:CreateBoardModel()
 	b:SetAngles(self:LocalToWorldAngles(self.BoardAngle))
 	b:SetParent(self)
 	b:Spawn()
+	b:SetSubMaterial(1, "monopoly/default_board")
 	b:DeleteOnRemove(self)
 	b:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
 	self:DeleteOnRemove(b)

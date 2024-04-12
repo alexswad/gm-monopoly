@@ -36,6 +36,11 @@ if SERVER then
 		local ply = isnumber(entity) and entity or self:GetPlayerIndex(entity)
 		if not ply or self:GetState() ~= self.ST.WAITING then return false end
 
+		local pe = self:GetPlayerByIndex(pe)
+		if not pe then return end
+		pe:SetValid(false, true)
+		pe.Board = nil
+		pe.Entity = nil
 		table.remove(self.Players, ply)
 
 		self:ReloadPlayerList()
@@ -60,7 +65,6 @@ end
 
 if CLIENT then
 	function ENT:RebuildPlayerCache()
-		print("help")
 		timer.Create("MN_RebuildPlayerCache", 0.1, 1, function()
 			self:BuildPlayerCache()
 		end)
@@ -69,7 +73,6 @@ if CLIENT then
 	function ENT:BuildPlayerCache()
 		self.Players = {}
 		for i = 1, 8 do
-			print(self:GetDTInt(i))
 			if bit.band(self:GetDTInt(i), 1) == 1 then
 				self.Players[i] = self:CreatePlayer(self:GetDTEntity(i))
 			end
@@ -242,72 +245,7 @@ function PLAYER:GetPropDataString()
 	return str
 end
 
-// planned to be remade in 3D
-if CLIENT then
-
-	local d = 1080
-	local x, y = ScrW() / 2 - d / 2, 0
-
-	// this math is all garbage but it works for TESTING!!!!
-	local function calcspace(space, i)
-		if space > 0 and space <= 11 then
-			local nx, ny = x + d - 18 * 3 - 13, y + d - 32
-			nx = nx - (140 / 2) - 89 * (space - 1)
-
-			nx = nx + 30 * math.floor((i - 1) / 3)
-			ny = ny - 34 * (i - 1) % (34 * 3)
-
-			return nx, ny
-		elseif space <= 21 then
-			local nx, ny = x + 2 , y + d - 18 * 3 - 13
-			ny = ny - (140 / 2) - 89 * (space % 11)
-
-			ny = ny + 30 * math.floor((i - 1) / 3)
-			nx = nx + 34 * (i - 1) % (34 * 3)
-
-			return nx, ny
-		elseif space <= 31 then
-			local nx, ny = x - 16, y + 5
-			nx = nx + 140 / 2 + 89 * ((space + 1) % 11)
-
-			nx = nx + 30 * math.floor((i - 1) / 3)
-			ny = ny + 34 * (i - 1) % (34 * 3)
-
-			return nx, ny
-		elseif space <= 40 then
-			local nx, ny = x + d - 32 , y - 27
-			ny = ny + 140 + 89 * ((space + 2) % 11)
-
-			ny = ny - 30 * math.floor((i - 1) / 3)
-			nx = nx - 34 * (i - 1) % (34 * 3)
-
-			return nx, ny
-		end
-		return x + d / 2 + i, y + d / 2 + i
-	end
-
-	function PLAYER:Draw()
-		local i = self:GetIndex()
-		local space = self.DrawSpace or self:GetSpace()
-		local nx, ny = calcspace(space, i)
-		surface.SetDrawColor(Color(10, 10, 10))
-		surface.DrawRect(nx, ny, 24, 24)
-		surface.SetDrawColor(self:GetColor())
-		surface.DrawRect(nx + 3, ny + 3, 18, 18)
-		draw.DrawText(self:GetDiceTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-	end
-
-	function PLAYER:DrawPos(nx, ny)
-		nx, ny = nx - 12, ny - 12
-		surface.SetDrawColor(Color(10, 10, 10))
-		surface.DrawRect(nx, ny, 24, 24)
-		surface.SetDrawColor(self:GetColor())
-		surface.DrawRect(nx + 3, ny + 3, 18, 18)
-		draw.DrawText(self:GetDiceTotal() or 0, "TargetIDSmall", nx + 5, ny + 2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-	end
-
-	function PLAYER:GetColor()
-		local i = self:GetIndex() - 1
-		return HSVToColor(i / 8 * 360, 1 - 0.60 * math.Clamp(i - 2, 0, 1), 1 - 0.20 * math.Clamp(i - 2, 0, 1))
-	end
+function PLAYER:GetPlayerColor()
+	local i = self:GetIndex() - 1
+	return HSVToColor(i / 8 * 360, 1 - 0.60 * math.Clamp(i - 2, 0, 1), 1 - 0.20 * math.Clamp(i - 2, 0, 1))
 end

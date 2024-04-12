@@ -24,19 +24,19 @@ local function AccessorFlags(target, flagvar, tab, roff, network)
 			return rshift(band(network and CLIENT and self:GetDTInt(network) or self[flagvar], lshift(flb, sb)), sb) or 0
 		end
 
-		target["Set" .. k] = function(self, val)
+		target["Set" .. k] = function(self, val, dn)
 			assert(val <= flb, "SetFlag " .. k .. " out of range (" .. val .. " > " .. flb .. ")")
 			local res = bor(band(self[flagvar], bnot(lshift(flb, sb))), lshift(val, sb))
 			self[flagvar] = res
-			if network and SERVER then self:SetDTInt(network, res) end
+			if not dn and network and SERVER then self:SetDTInt(network, res) end
 		end
 
 		target["Set" .. k .. "Var"] = target["Set" .. k]
 		target["Get" .. k .. "Var"] = target["Get" .. k]
 
 		if v == 1 then
-			target["Set" .. k] = function(self, val)
-				self["Set" .. k .. "Var"](self, val and 1 or 0)
+			target["Set" .. k] = function(self, val, dn)
+				self["Set" .. k .. "Var"](self, val and 1 or 0, dn)
 			end
 
 			target["Get" .. k] = function(self)
