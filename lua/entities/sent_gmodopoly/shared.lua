@@ -18,6 +18,7 @@ AddCSLuaFile("meta/states.lua")
 AddCSLuaFile("meta/cards.lua")
 
 AddCSLuaFile("vgui/panel.lua")
+AddCSLuaFile("vgui/player.lua")
 
 AccessorFlags = include("meta/flags.lua")
 include("board_spaces.lua")
@@ -51,7 +52,7 @@ end
 
 function ENT:Think()
 	if CLIENT and not IsValid(CMONPANEL) then
-		CMONPANEL = vgui.CreateFromTable(MONPANEL)
+		CMONPANEL = vgui.CreateFromTable(self.MONPANEL)
 		CMONPANEL.Board = self
 	end
 

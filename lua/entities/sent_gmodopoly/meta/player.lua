@@ -78,6 +78,7 @@ if CLIENT then
 			end
 		end
 		self:BuildPropertyCache()
+		self:InvalidatePlayerPanels()
 	end
 end
 
@@ -113,7 +114,7 @@ function ENT:GetTurnPlayer()
 end
 
 function PLAYER:IsValid()
-	return self:GetValid() and IsValid(self.Board) and IsValid(self.Entity)
+	return self:GetValid() and IsValid(self.Board) and IsValid(self.Entity) and table.HasValue(self.Board.Players, self)
 end
 
 function PLAYER:IsTurn()

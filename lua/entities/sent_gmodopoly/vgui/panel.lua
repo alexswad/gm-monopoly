@@ -1,9 +1,16 @@
+function ENT:InvalidatePlayerPanels()
+	if not IsValid(CMONPANEL) then return end
+	CMONPANEL:ValidatePlayerPanels()
+end
+
 local PANEL = {}
+local PLAYER = ENT.PLAYER_PANEL
 PANEL.CameraPos = vector_origin
 PANEL.CameraAngle = angle_zero
 
 function PANEL:Init()
 	self:SetFocusTopLevel(true)
+	self.PPanels = {}
 end
 
 function PANEL:Think()
@@ -14,6 +21,37 @@ function PANEL:Think()
 	end
 	self:SetSize(ScrW(), ScrH())
 	self:Center()
+	if self.NextThink and self.NextThink < CurTime() then return end
+
+	self.NextThink = CurTime() + 0.5
+end
+
+function PANEL:ValidatePlayerPanels()
+	local b = self.Board
+	if not IsValid(b) then return end
+
+	local mply = math.max(0, #self.Board.Players - table.Count(self.PPanels))
+
+	if mply ~= 0 then
+		for i = 1, mply do
+			self:CreatePlayerPanel()
+		end
+	end
+
+	local sort
+	for k, v in pairs(self.PPanels) do
+		local ply = b:GetPlayerByIndex(k)
+		if not ply then
+			sort = true
+			v:Remove()
+			self.PPanels[v] = nil
+			continue
+		end
+		v:SetPlayer(ply)
+	end
+
+	if sort then table.SortByMember(self.PPanels, "Index", true) end
+	self:InvalidateLayout()
 end
 
 function PANEL:Center()
@@ -25,6 +63,12 @@ function PANEL:FaceVector(pos, angle, dist)
 	local npos = angle:Forward() * dist + pos
 	self.CameraPos = self.Board:LocalToWorld(npos)
 	self.CameraAngle = self.Board:LocalToWorldAngles((pos - npos):Angle())
+end
+
+function PANEL:CreatePlayerPanel()
+	local np = vgui.CreateFromTable(PLAYER, self)
+	self.PPanels[#self.PPanels + 1] = np
+	return np
 end
 
 local spin = 0
@@ -65,8 +109,11 @@ function PANEL:Paint(w, h)
 end
 
 function PANEL:PerformLayout(w, h)
-
+	for k, v in pairs(self.PPanels) do
+		v:SetSize(300, 100)
+		v:SetPos(10, -50 + 100 * k)
+	end
 end
 
 
-MONPANEL = vgui.RegisterTable(PANEL)
+ENT.MONPANEL = vgui.RegisterTable(PANEL)
